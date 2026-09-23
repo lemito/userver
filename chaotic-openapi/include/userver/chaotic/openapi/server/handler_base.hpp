@@ -3,12 +3,14 @@
 /// @file userver/chaotic/openapi/server/handler_base.hpp
 /// @brief Base class template for chaotic-generated HTTP handlers
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
 
 #include <userver/chaotic/openapi/parameters_read.hpp>
+#include <userver/chaotic/openapi/server/bearer_auth.hpp>
 #include <userver/chaotic/openapi/server/dependencies.hpp>
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
@@ -19,6 +21,7 @@
 #include <userver/server/handlers/http_handler_base.hpp>
 #include <userver/server/http/http_request.hpp>
 #include <userver/server/request/request_context.hpp>
+#include <userver/yaml_config/merge_schemas.hpp>
 
 USERVER_NAMESPACE_BEGIN
 
@@ -27,6 +30,7 @@ namespace chaotic::openapi::server {
 namespace impl {
 
 inline const utils::AnyStorageDataTag<USERVER_NAMESPACE::server::request::StorageContext, std::string> kResponseLog;
+inline const utils::AnyStorageDataTag<USERVER_NAMESPACE::server::request::StorageContext, BearerTokenData> kBearerTokenData;
 
 template <typename V>
 concept ViewHasGetRequestBodyForLoggingJson = requires(const USERVER_NAMESPACE::formats::json::Value& body) {
@@ -123,10 +127,48 @@ public:
         const USERVER_NAMESPACE::components::ComponentContext& context
     )
         : USERVER_NAMESPACE::server::handlers::HttpHandlerBase(config, context),
-          factories_(context.FindComponent<FactoriesContainer>())
+          factories_(context.FindComponent<FactoriesContainer>()),
+          bearer_checker_(MakeBearerAuthChecker(config, context))
     {}
 
     ~BaseHandler() override = default;
+
+    /// @brief Returns the verified bearer token data for the current request,
+    /// or `std::nullopt` if the request was not authenticated with a valid
+    /// bearer token (or no bearer auth checker is configured for this handler).
+    ///
+    /// The handler verifies the `Authorization: Bearer <token>` header with the
+    /// configured `BearerAuthChecker` and stores the result in the request
+    /// context before `View::Handle` is invoked.
+    static std::optional<BearerTokenData> GetBearerTokenData(
+        const USERVER_NAMESPACE::server::request::RequestContext& context
+    ) {
+        const auto* data = context.GetDataOptional(impl::kBearerTokenData);
+        if (!data) {
+            return std::nullopt;
+        }
+        return *data;
+    }
+
+    static USERVER_NAMESPACE::yaml_config::Schema GetStaticConfigSchema() {
+        std::string base_schema = R"(
+type: object
+description: chaotic-openapi generated handler
+additionalProperties: false
+properties:
+    bearer_auth:
+        type: object
+        description: Bearer authentication configuration
+        additionalProperties: false
+        properties:
+            checker_component:
+                type: string
+                description: Name of the BearerAuthCheckerFactory component
+)";
+        return USERVER_NAMESPACE::yaml_config::MergeSchemas<USERVER_NAMESPACE::server::handlers::HttpHandlerBase>(
+            base_schema
+        );
+    }
 
 private:
     // Guard against the old generated signature (const Request&) or other unexpected types.
@@ -204,6 +246,9 @@ private:
 
     std::string HandleRequest(HttpRequest& http_request, USERVER_NAMESPACE::server::request::RequestContext& context)
         const final {
+        if (bearer_checker_) {
+            VerifyBearerToken(http_request, context);
+        }
         auto request = ParseRequestOrThrow(http_request);
         return HandleParsed<ErrorResponseBase>(request, http_request, context);
     }
@@ -257,7 +302,41 @@ private:
         );
     }
 
+
+    static std::unique_ptr<BearerAuthChecker> MakeBearerAuthChecker(
+        const USERVER_NAMESPACE::components::ComponentConfig& config,
+        const USERVER_NAMESPACE::components::ComponentContext& context
+    ) {
+        const auto checker_component =
+            config["bearer_auth"]["checker_component"].As<std::optional<std::string>>(std::nullopt);
+        if (!checker_component) {
+            return nullptr;
+        }
+        auto& factory = context.FindComponent<BearerAuthCheckerFactory>(*checker_component);
+        return factory.Create(config, context);
+    }
+
+    void VerifyBearerToken(
+        const HttpRequest& http_request,
+        USERVER_NAMESPACE::server::request::RequestContext& context
+    ) const {
+        const auto token = impl::ExtractBearerToken(http_request);
+        if (!token) {
+            throw USERVER_NAMESPACE::server::handlers::Unauthorized(
+                USERVER_NAMESPACE::server::handlers::ExternalBody{"Bearer token is required"}
+            );
+        }
+        auto token_data = bearer_checker_->VerifyToken(*token);
+        if (!token_data) {
+            throw USERVER_NAMESPACE::server::handlers::Unauthorized(
+                USERVER_NAMESPACE::server::handlers::ExternalBody{"Invalid bearer token"}
+            );
+        }
+        context.EmplaceData(impl::kBearerTokenData, std::move(*token_data));
+    }
+
     FactoriesContainer& factories_;
+    std::unique_ptr<BearerAuthChecker> bearer_checker_;
 };
 
 }  // namespace chaotic::openapi::server

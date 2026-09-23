@@ -160,10 +160,44 @@ def test_http_basic_rejected():
         _make_translator(_openapi_with_scheme('basicAuth', _BASIC_SCHEME))
 
 
-def test_http_bearer_rejected():
-    """http/bearer raises a "not yet supported" error."""
-    with pytest.raises(chaotic_error.BaseError, match=r'.*http/bearer.*not yet supported.*'):
-        _make_translator(_openapi_with_scheme('bearerAuth', _BEARER_SCHEME))
+def test_http_bearer_translated():
+    """http/bearer -> HttpBearerSecurity with auth_type = scheme name."""
+    sec = _single_op_security(_openapi_with_scheme('myBearer', _BEARER_SCHEME))
+    assert isinstance(sec, common_types.HttpBearerSecurity)
+    assert sec.auth_type == 'myBearer'
+    assert sec.bearer_format is None
+
+
+def test_http_bearer_bearer_format_translated():
+    """bearerFormat is preserved in HttpBearerSecurity."""
+    scheme = dict(_BEARER_SCHEME)
+    scheme['bearerFormat'] = 'JWT'
+    sec = _single_op_security(_openapi_with_scheme('myBearer', scheme))
+    assert isinstance(sec, common_types.HttpBearerSecurity)
+    assert sec.bearer_format == 'JWT'
+
+
+def test_http_bearer_client_spec_methods():
+    """ClientSpec exposes bearer_scheme_names()/uses_bearer_security()."""
+    doc = dict(_BASE)
+    doc['components'] = {
+        'securitySchemes': {
+            'adminBearer': _BEARER_SCHEME,
+            'userBearer': _BEARER_SCHEME,
+        },
+    }
+    doc['paths'] = {
+        '/admin': {'get': {'responses': {}, 'security': [{'adminBearer': []}]}},
+        '/user': {'get': {'responses': {}, 'security': [{'userBearer': []}]}},
+    }
+    spec = _make_translator(doc).spec()
+
+    assert len(spec.operations) == 2
+    auth_types = {op.security.auth_type for op in spec.operations}  # type: ignore[union-attr]
+    assert auth_types == {'adminBearer', 'userBearer'}
+
+    assert spec.uses_bearer_security()
+    assert spec.bearer_scheme_names() == ['adminBearer', 'userBearer']
 
 
 def test_apikey_rejected():

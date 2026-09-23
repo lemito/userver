@@ -21,6 +21,11 @@ public:
     ///       scheme '{{ op.digest_scheme_name() }}' must be present in secdist
     ///       under http_digest.{{ spec.client_name }}.{{ op.digest_scheme_name() }}.
     {% endif %}
+    {% if op.uses_bearer_security() %}
+    /// @note Requires HTTP Bearer authentication. The credentials for security
+    ///       scheme '{{ op.bearer_scheme_name() }}' must be present in secdist
+    ///       under http_bearer.{{ spec.client_name }}.{{ op.bearer_scheme_name() }}.
+    {% endif %}
     /// @throw {{ op.cpp_namespace() }}::Exception
     {% for response in op.responses if response.is_error() %}
     /// @throw {{ op.cpp_namespace() }}::Response{{ response.status }}

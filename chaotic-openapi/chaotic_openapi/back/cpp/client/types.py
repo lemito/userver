@@ -3,6 +3,7 @@ import dataclasses
 from chaotic.back.cpp import types as cpp_types
 from chaotic_openapi.back.cpp.common import types as common_types
 from chaotic_openapi.back.cpp.common.types import Body
+from chaotic_openapi.back.cpp.common.types import HttpBearerSecurity
 from chaotic_openapi.back.cpp.common.types import HttpDigestSecurity
 from chaotic_openapi.back.cpp.common.types import map_method
 from chaotic_openapi.back.cpp.common.types import Operation
@@ -11,6 +12,7 @@ from chaotic_openapi.back.cpp.common.types import Response
 
 __all__ = [
     'Body',
+    'HttpBearerSecurity',
     'HttpDigestSecurity',
     'map_method',
     'Operation',
@@ -43,6 +45,17 @@ class ClientSpec(common_types.SpecBase):
 
     def uses_digest_security(self) -> bool:
         return bool(self.digest_scheme_names())
+
+    def bearer_scheme_names(self) -> list[str]:
+        names = {
+            op.security.auth_type
+            for op in self.operations
+            if op.client_generate and isinstance(op.security, HttpBearerSecurity)
+        }
+        return sorted(names)
+
+    def uses_bearer_security(self) -> bool:
+        return bool(self.bearer_scheme_names())
 
     def has_multiple_content_type_request(self) -> bool:
         for op in self.operations:

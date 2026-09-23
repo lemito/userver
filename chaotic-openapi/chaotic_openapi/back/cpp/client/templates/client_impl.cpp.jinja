@@ -5,7 +5,7 @@
 #include <userver/components/component_base.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 
-{% if spec.uses_digest_security() %}
+{% if spec.uses_digest_security() or spec.uses_bearer_security() %}
 #include <userver/clients/http/request.hpp>
 #include <userver/utils/algo.hpp>
 #include <userver/utils/assert.hpp>
@@ -66,6 +66,18 @@ ClientImpl::ClientImpl(
             credentials->username,
             credentials->password.GetUnderlying()
         );
+        {% endif %}
+
+        {% if op.uses_bearer_security() %}
+        // Apply Bearer auth credentials for scheme '{{ op.bearer_scheme_name() }}'
+        const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(
+            config_.bearer_auth_credentials, "{{ op.bearer_scheme_name() }}"
+        );
+        UINVARIANT(
+            credentials != nullptr,
+            "Bearer auth credentials for scheme '{{ op.bearer_scheme_name() }}' not found in config"
+        );
+        r.headers({ {"Authorization", "Bearer " + credentials->token.GetUnderlying()} });
         {% endif %}
 
         middleware_manager_.ProcessRequest(r);

@@ -234,6 +234,14 @@ class Operation:
         assert self.security is not None
         return self.security.auth_type
 
+    def uses_bearer_security(self) -> bool:
+        return isinstance(self.security, HttpBearerSecurity)
+
+    def bearer_scheme_name(self) -> str:
+        assert self.uses_bearer_security(), 'Operation does not use bearer security'
+        assert self.security is not None
+        return self.security.auth_type
+
     def requests_declaration_includes(self) -> list[str]:
         includes: set[str] = set()
         for param in self.parameters:

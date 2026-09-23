@@ -130,6 +130,8 @@ class BaseTranslator(abc.ABC):
         if isinstance(sec, model.HttpSecurity):
             if sec.scheme == 'digest':
                 return common_types.HttpDigestSecurity(auth_type=sec.name)
+            if sec.scheme == 'bearer':
+                return common_types.HttpBearerSecurity(auth_type=sec.name, bearer_format=sec.bearerFormat)
             raise chaotic_error.BaseError(
                 full_filepath=op_path,
                 infile_path=f'/{op_method}/security/0/{sec.name}/scheme',
@@ -137,7 +139,7 @@ class BaseTranslator(abc.ABC):
                 msg=(
                     f'Operation "{op_method} {op_path}" uses security scheme '
                     f'"http/{sec.scheme}" which is not yet supported by chaotic-openapi. '
-                    f'Only "http/digest" is currently supported.'
+                    f'Only "http/digest" and "http/bearer" are currently supported.'
                 ),
             )
 
@@ -155,7 +157,7 @@ class BaseTranslator(abc.ABC):
             msg=(
                 f'Operation "{op_method} {op_path}" uses security type '
                 f'"{openapi_type}" which is not yet supported by chaotic-openapi. '
-                f'Only "type: http, scheme: digest" is currently supported.'
+                f'Only "type: http, scheme: digest" and "type: http, scheme: bearer" are currently supported.'
             ),
         )
 

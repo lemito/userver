@@ -79,7 +79,12 @@ def do_main():
 
         if args.gen in ('handlers', 'handlers+views'):
             # handlers
-            outputs = handler_renderer.render(spec, ctx, args.userver)
+            outputs = handler_renderer.render(
+                spec,
+                ctx,
+                args.userver,
+                schema_files=[os.path.basename(f) for f in args.files],
+            )
             client_renderer.CppOutput.save(outputs, args.output_dir)
 
             # config.yaml

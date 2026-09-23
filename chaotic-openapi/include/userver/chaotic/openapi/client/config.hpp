@@ -3,6 +3,7 @@
 #include <chrono>
 #include <string>
 
+#include <userver/chaotic/openapi/client/bearer_auth.hpp>
 #include <userver/chaotic/openapi/client/digest_auth.hpp>
 
 USERVER_NAMESPACE_BEGIN
@@ -23,6 +24,7 @@ struct Config {
     std::chrono::milliseconds timeout{100};
 
     DigestAuthCredentialsByScheme digest_auth_credentials{};
+    BearerAuthCredentialsByScheme bearer_auth_credentials{};
 };
 
 Config ParseConfig(const components::ComponentConfig& config, std::string_view base_url);

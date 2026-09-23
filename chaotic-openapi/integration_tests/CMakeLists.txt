@@ -28,10 +28,11 @@ file(
     ${CMAKE_CURRENT_SOURCE_DIR}/handlers/*
 )
 foreach(HANDLER ${HANDLERS})
+    string(REPLACE "-" "_" HANDLER_NAME ${HANDLER})
     file(GLOB SCHEMAS ${CMAKE_CURRENT_SOURCE_DIR}/handlers/${HANDLER}/*.yaml)
     userver_target_generate_openapi_handlers(
         ${PROJECT_NAME}-handler-${HANDLER}
-        NAME ${HANDLER}
+        NAME ${HANDLER_NAME}
         SCHEMAS ${SCHEMAS}
         SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src
     )

@@ -10,6 +10,7 @@ from chaotic import jinja_env
 from chaotic.back.cpp import renderer as cpp_renderer
 from chaotic_openapi.back.cpp.client.renderer import Context
 from chaotic_openapi.back.cpp.client.renderer import CppOutput
+from chaotic_openapi.back.cpp.common.types import HttpBearerSecurity
 from chaotic_openapi.back.cpp.common.types import Operation
 from chaotic_openapi.back.cpp.handler.types import ServerSpec
 
@@ -87,7 +88,12 @@ def _render_template(name: str, clang_format_bin: str, rel_path: str, **env: obj
     return CppOutput(rel_path=rel_path, content=pp)
 
 
-def render(spec: ServerSpec, context: Context, userver_namespace: str) -> list[CppOutput]:
+def render(
+    spec: ServerSpec,
+    context: Context,
+    userver_namespace: str,
+    schema_files: list[str] | None = None,
+) -> list[CppOutput]:
     output = []
 
     for op in spec.operations:
@@ -124,7 +130,9 @@ def render(spec: ServerSpec, context: Context, userver_namespace: str) -> list[C
         spec.extract_cpp_types(),
         local_pair_header=False,
     )
+    produced_stems: set[str] = set()
     for cpp_output in cpp_outputs:
+        produced_stems.add(cpp_output.filepath_wo_ext.split('/')[-1])
         for file in cpp_output.files:
             output.append(
                 CppOutput(
@@ -132,6 +140,22 @@ def render(spec: ServerSpec, context: Context, userver_namespace: str) -> list[C
                     content=file.content,
                 ),
             )
+
+    # For every input schema that produced no C++ types, emit empty stub files
+    # so that CMake can unconditionally declare the file set per schema without
+    # special-casing type-less schemas.
+    if schema_files is not None:
+        service = spec.service_name
+        for schema_file in schema_files:
+            stem = schema_file.rsplit('.', 1)[0]
+            if stem in produced_stems:
+                continue
+            include_base = f'include/handlers/{service}/{stem}'
+            src_base = f'src/handlers/{service}/{stem}'
+            output.extend([
+                CppOutput(rel_path=f'{include_base}.hpp', content='#pragma once\n'),
+                CppOutput(rel_path=f'{src_base}.cpp', content=f'#include "handlers/{service}/{stem}.hpp"\n'),
+            ])
 
     return output
 
@@ -142,6 +166,12 @@ def render_config_yaml(spec: ServerSpec) -> str:
         entry: dict = {'path': op.path, 'method': op.method.upper()}
         if op.security:
             entry['auth'] = {'types': [op.security.auth_type]}
+        if op.uses_bearer_security():
+            assert isinstance(op.security, HttpBearerSecurity)
+            bearer_auth: dict = {}
+            if op.security.bearer_format:
+                bearer_auth['bearer_format'] = op.security.bearer_format
+            entry['bearer_auth'] = bearer_auth
         components[component_name(op)] = entry
     config = {
         'components_manager': {

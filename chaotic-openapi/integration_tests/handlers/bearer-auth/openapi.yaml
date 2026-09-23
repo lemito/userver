@@ -1,0 +1,25 @@
+openapi: 3.0.0
+info:
+    title: Bearer auth handler integration test
+    version: '1.0'
+
+components:
+    securitySchemes:
+        myBearerScheme:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+paths:
+    /secure:
+        get:
+            operationId: secureGet
+            security:
+              - myBearerScheme: []
+            responses:
+                200:
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: string

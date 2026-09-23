@@ -11,6 +11,7 @@ _BASE = {
 }
 
 _DIGEST_SCHEME = {'type': 'http', 'scheme': 'digest'}
+_BEARER_SCHEME = {'type': 'http', 'scheme': 'bearer', 'bearerFormat': 'JWT'}
 
 
 def _translate_handler(openapi_doc: dict) -> ServerSpec:
@@ -92,3 +93,48 @@ def test_handler_config_yaml_mixed_ops():
     components = config['components_manager']['components']
     assert components['handler-get-secured']['auth'] == {'types': ['myDigest']}
     assert 'auth' not in components['handler-get-public']
+
+
+def test_handler_config_yaml_with_bearer_auth():
+    """Bearer security -> config.chaotic.yaml includes auth.types and bearer_auth."""
+    doc = dict(_BASE)
+    doc['components'] = {'securitySchemes': {'myBearer': _BEARER_SCHEME}}
+    doc['paths'] = {
+        '/test': {
+            'get': {
+                'operationId': 'getTest',
+                'responses': {},
+                'security': [{'myBearer': []}],
+            },
+        },
+    }
+    spec = _translate_handler(doc)
+    config_yaml = handler_renderer.render_config_yaml(spec)
+    config = yaml.safe_load(config_yaml)
+
+    components = config['components_manager']['components']
+    handler_entry = components['handler-get-test']
+    assert handler_entry['auth'] == {'types': ['myBearer']}
+    assert handler_entry['bearer_auth'] == {'bearer_format': 'JWT'}
+
+
+def test_handler_config_yaml_bearer_without_format():
+    """Bearer security without bearerFormat -> empty bearer_auth section."""
+    doc = dict(_BASE)
+    doc['components'] = {'securitySchemes': {'myBearer': {'type': 'http', 'scheme': 'bearer'}}}
+    doc['paths'] = {
+        '/test': {
+            'get': {
+                'operationId': 'getTest',
+                'responses': {},
+                'security': [{'myBearer': []}],
+            },
+        },
+    }
+    spec = _translate_handler(doc)
+    config_yaml = handler_renderer.render_config_yaml(spec)
+    config = yaml.safe_load(config_yaml)
+
+    components = config['components_manager']['components']
+    handler_entry = components['handler-get-test']
+    assert handler_entry['bearer_auth'] == {}
