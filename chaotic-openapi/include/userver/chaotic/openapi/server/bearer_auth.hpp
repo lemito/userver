@@ -12,6 +12,8 @@
 
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
+#include <userver/dynamic_config/snapshot.hpp>
+#include <userver/formats/parse/to.hpp>
 
 USERVER_NAMESPACE_BEGIN
 
@@ -29,6 +31,38 @@ namespace impl {
 std::optional<std::string_view> ExtractBearerToken(const ::USERVER_NAMESPACE::server::http::HttpRequest& request);
 
 }  // namespace impl
+
+/// @brief Runtime configuration of the bearer auth checker of a generated
+/// handler, used by the dynamic config key `kBearerAuthCheckerConfig`.
+struct BearerAuthCheckerConfig {
+    /// Name of the `BearerAuthCheckerFactory` component that creates the
+    /// checker. Empty means "no bearer auth" (or fall back to the static
+    /// config of the handler).
+    std::string checker_component;
+    /// Value of the OpenAPI `bearerFormat` field (e.g. "JWT"), if declared.
+    std::string bearer_format;
+
+    bool operator==(const BearerAuthCheckerConfig&) const = default;
+};
+
+/// @brief Parses the checker config from JSON, used by dynamic config.
+BearerAuthCheckerConfig Parse(const formats::json::Value& value, formats::parse::To<BearerAuthCheckerConfig>);
+
+/// @brief Dynamic config key with the bearer auth checker configuration of
+/// generated handlers.
+///
+/// Expected dynamic config JSON layout:
+/// @code{.json}
+/// {
+///   "BEARER_AUTH_CHECKER_CONFIG": {
+///     "checker_component": "my-jwt-checker",
+///     "bearer_format": "JWT"
+///   }
+/// }
+/// @endcode
+inline const dynamic_config::Key<BearerAuthCheckerConfig> kBearerAuthCheckerConfig{
+    "BEARER_AUTH_CHECKER_CONFIG", dynamic_config::DefaultAsJsonString{"{}"}
+};
 
 /// @brief Result of a successful bearer token verification.
 ///

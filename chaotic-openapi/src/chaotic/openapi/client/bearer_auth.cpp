@@ -9,12 +9,16 @@ USERVER_NAMESPACE_BEGIN
 
 namespace chaotic::openapi::client {
 
+BearerAuthCredentials Parse(const formats::json::Value& value, formats::parse::To<BearerAuthCredentials>) {
+    return BearerAuthCredentials{
+        BearerAuthCredentials::Token{value["token"].As<std::string>()},
+    };
+}
+
 namespace {
 
 BearerAuthCredentials ParseCredentials(const formats::json::Value& doc) {
-    return BearerAuthCredentials{
-        BearerAuthCredentials::Token{doc["token"].As<std::string>()},
-    };
+    return Parse(doc, formats::parse::To<BearerAuthCredentials>{});
 }
 
 }  // namespace

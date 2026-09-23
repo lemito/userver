@@ -64,6 +64,11 @@ components_manager:
             base-url: 'http://localhost:8080/'
         # /// [digest-client-config]
 
+        # /// [bearer-client-config]
+        bearer-client:
+            base-url: 'http://localhost:8080/'
+        # /// [bearer-client-config]
+
         # /// [qos-config]
         test-client:
             middlewares:

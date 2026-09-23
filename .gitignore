@@ -37,3 +37,4 @@ universal/include/userver/version.hpp
 /scripts/build-and-upload-ppa/pyrightconfig.json
 /scripts/build-and-upload-ppa/tests/scripts-build-and-upload-ppa-tests
 /scripts/build-and-upload-ppa/tests/test-results
+.cairn.*

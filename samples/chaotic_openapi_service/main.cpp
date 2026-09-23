@@ -17,6 +17,7 @@
 #include <clients/secure/component.hpp>
 #include <clients/test/component.hpp>
 #include <clients/test/qos.hpp>
+#include <clients/bearer/component.hpp>
 
 #include <auth_digest.hpp>
 #include <handlers/insecure/chaotic_handlers_list.hpp>
@@ -54,6 +55,9 @@ int main(int argc, char* argv[]) {
             /// [register-digest-client]
             .Append<::clients::secure::Component>()
             /// [register-digest-client]
+            /// [register-bearer-client]
+            .Append<::clients::bearer::Component>()
+            /// [register-bearer-client]
             /// [register-handlers]
             .Append<USERVER_NAMESPACE::components::Container<
                 USERVER_NAMESPACE::chaotic::openapi::server::dependencies::Factories>>()

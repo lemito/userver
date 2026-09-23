@@ -3,6 +3,7 @@
 #include "requests.hpp"
 #include "responses.hpp"
 
+#include <userver/chaotic/openapi/client/bearer_auth.hpp>
 #include <userver/chaotic/openapi/client/command_control.hpp>
 #include <userver/chaotic/openapi/server/dependencies.hpp>
 
@@ -25,6 +26,8 @@ public:
     /// @note Requires HTTP Bearer authentication. The credentials for security
     ///       scheme '{{ op.bearer_scheme_name() }}' must be present in secdist
     ///       under http_bearer.{{ spec.client_name }}.{{ op.bearer_scheme_name() }}.
+    ///       The credentials may also be updated at runtime via
+    ///       `UpdateBearerAuthCredentials()`.
     {% endif %}
     /// @throw {{ op.cpp_namespace() }}::Exception
     {% for response in op.responses if response.is_error() %}
@@ -38,6 +41,17 @@ public:
           const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control = {}) = 0;
   {% endif %}
 {% endfor %}
+
+  {% if spec.uses_bearer_security() %}
+    /// @brief Replaces the bearer auth credentials used by this client.
+    ///
+    /// The credentials are read from the dynamic config key
+    /// `USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials`
+    /// by the generated component and pushed here on every config update.
+    virtual void UpdateBearerAuthCredentials(
+        USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme credentials
+    ) = 0;
+  {% endif %}
 
   virtual ~Client();
 };

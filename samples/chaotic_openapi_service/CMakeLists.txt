@@ -45,6 +45,16 @@ userver_target_generate_openapi_client(
 target_link_libraries(${PROJECT_NAME}_objs ${PROJECT_NAME}-client-secure_objs)
 # /// [digest-client-cmake]
 
+# /// [bearer-client-cmake] cmake
+userver_target_generate_openapi_client(
+    ${PROJECT_NAME}-client-bearer_objs
+    NAME bearer
+    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/clients/bearer"
+    SCHEMAS ${CMAKE_CURRENT_SOURCE_DIR}/clients/bearer.yaml
+)
+target_link_libraries(${PROJECT_NAME}_objs ${PROJECT_NAME}-client-bearer_objs)
+# /// [bearer-client-cmake]
+
 # /// [chaotic-handler] cmake
 userver_target_generate_openapi_handlers(
     ${PROJECT_NAME}-handler-insecure_objs

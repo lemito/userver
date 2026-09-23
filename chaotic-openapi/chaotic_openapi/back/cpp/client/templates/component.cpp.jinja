@@ -25,6 +25,10 @@
 #include <userver/utils/assert.hpp>
 {% endif %}
 
+{% if spec.uses_bearer_security() %}
+#include <userver/dynamic_config/storage/component.hpp>
+{% endif %}
+
 namespace {{ namespace }} {
 
 namespace {
@@ -88,8 +92,20 @@ Component::Component(
       client_(
           MakeConfig(config, context),
           context.FindComponent<USERVER_NAMESPACE::components::HttpClient>().GetHttpClient()
-      ) 
+      ){% if spec.uses_bearer_security() %},
+      config_source_(context.FindComponent<USERVER_NAMESPACE::components::DynamicConfig>().GetSource())
+{% endif %}
 {
+    {% if spec.uses_bearer_security() %}
+    config_source_.UpdateAndListen(
+        context.Scopes(),
+        this,
+        "{{ spec.client_name }}",
+        &Component::OnBearerAuthConfigUpdate,
+        USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials
+    );
+    {% endif %}
+
     if (config.HasMember("middlewares")) {
         const auto& mw_config = config["middlewares"];
         
@@ -119,6 +135,12 @@ Component::Component(
 }
 
 Client& Component::GetClient() { return client_; }
+
+{% if spec.uses_bearer_security() %}
+void Component::OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
+    client_.UpdateBearerAuthCredentials(config[USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials]);
+}
+{% endif %}
 
 USERVER_NAMESPACE::yaml_config::Schema Component::GetStaticConfigSchema() {
     std::string base_schema = R"(

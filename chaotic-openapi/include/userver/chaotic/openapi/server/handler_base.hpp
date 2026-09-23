@@ -15,8 +15,13 @@
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/components/container.hpp>
+#include <userver/dynamic_config/snapshot.hpp>
+#include <userver/dynamic_config/source.hpp>
+#include <userver/dynamic_config/storage/component.hpp>
+#include <userver/formats/common/type.hpp>
 #include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value.hpp>
+#include <userver/formats/yaml/value_builder.hpp>
 #include <userver/server/handlers/exceptions.hpp>
 #include <userver/server/handlers/http_handler_base.hpp>
 #include <userver/server/http/http_request.hpp>
@@ -128,8 +133,14 @@ public:
     )
         : USERVER_NAMESPACE::server::handlers::HttpHandlerBase(config, context),
           factories_(context.FindComponent<FactoriesContainer>()),
-          bearer_checker_(MakeBearerAuthChecker(config, context))
-    {}
+          context_(context),
+          config_source_(context.FindComponent<components::DynamicConfig>().GetSource()),
+          static_checker_config_(ParseStaticCheckerConfig(config))
+    {
+        config_source_.UpdateAndListen(
+            context.Scopes(), this, kName, &BaseHandler::OnBearerAuthConfigUpdate, kBearerAuthCheckerConfig
+        );
+    }
 
     ~BaseHandler() override = default;
 
@@ -164,6 +175,9 @@ properties:
             checker_component:
                 type: string
                 description: Name of the BearerAuthCheckerFactory component
+            bearer_format:
+                type: string
+                description: Value of the OpenAPI bearerFormat field (e.g. JWT)
 )";
         return USERVER_NAMESPACE::yaml_config::MergeSchemas<USERVER_NAMESPACE::server::handlers::HttpHandlerBase>(
             base_schema
@@ -303,17 +317,53 @@ private:
     }
 
 
+    static BearerAuthCheckerConfig ParseStaticCheckerConfig(
+        const USERVER_NAMESPACE::components::ComponentConfig& config
+    ) {
+        BearerAuthCheckerConfig checker_config;
+        checker_config.checker_component =
+            config["bearer_auth"]["checker_component"].As<std::string>("");
+        checker_config.bearer_format = config["bearer_auth"]["bearer_format"].As<std::string>("");
+        return checker_config;
+    }
+
+    static USERVER_NAMESPACE::components::ComponentConfig MakeComponentConfig(
+        const BearerAuthCheckerConfig& checker_config,
+        std::string_view handler_name
+    ) {
+        auto builder = USERVER_NAMESPACE::formats::yaml::ValueBuilder{USERVER_NAMESPACE::formats::common::Type::kObject};
+        builder["bearer_auth"]["checker_component"] = checker_config.checker_component;
+        builder["bearer_auth"]["bearer_format"] = checker_config.bearer_format;
+        USERVER_NAMESPACE::yaml_config::YamlConfig yaml_config{
+            builder.ExtractValue(),
+            USERVER_NAMESPACE::formats::yaml::Value{},
+            USERVER_NAMESPACE::yaml_config::YamlConfig::Mode::kSecure
+        };
+        USERVER_NAMESPACE::components::ComponentConfig config{std::move(yaml_config)};
+        config.SetName(std::string{handler_name});
+        return config;
+    }
+
     static std::unique_ptr<BearerAuthChecker> MakeBearerAuthChecker(
-        const USERVER_NAMESPACE::components::ComponentConfig& config,
+        const BearerAuthCheckerConfig& checker_config,
         const USERVER_NAMESPACE::components::ComponentContext& context
     ) {
-        const auto checker_component =
-            config["bearer_auth"]["checker_component"].As<std::optional<std::string>>(std::nullopt);
-        if (!checker_component) {
+        if (checker_config.checker_component.empty()) {
             return nullptr;
         }
-        auto& factory = context.FindComponent<BearerAuthCheckerFactory>(*checker_component);
-        return factory.Create(config, context);
+        auto& factory = context.FindComponent<BearerAuthCheckerFactory>(checker_config.checker_component);
+        return factory.Create(MakeComponentConfig(checker_config, kName), context);
+    }
+
+    void OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
+        const auto& checker_config = config[kBearerAuthCheckerConfig];
+        if (checker_config.checker_component.empty()) {
+            // Dynamic config does not override the checker: fall back to the
+            // static config of the handler.
+            bearer_checker_ = MakeBearerAuthChecker(static_checker_config_, context_);
+        } else {
+            bearer_checker_ = MakeBearerAuthChecker(checker_config, context_);
+        }
     }
 
     void VerifyBearerToken(
@@ -336,6 +386,9 @@ private:
     }
 
     FactoriesContainer& factories_;
+    const USERVER_NAMESPACE::components::ComponentContext& context_;
+    USERVER_NAMESPACE::dynamic_config::Source config_source_;
+    BearerAuthCheckerConfig static_checker_config_;
     std::unique_ptr<BearerAuthChecker> bearer_checker_;
 };
 

@@ -1,0 +1,38 @@
+openapi: 3.0.0
+info:
+    title: Bearer-protected API
+    version: '1.0'
+
+components:
+    # /// [bearer security scheme]
+    securitySchemes:
+        myBearerScheme:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+    # /// [bearer security scheme]
+    schemas:
+        GreetingResponse:
+            type: object
+            additionalProperties: false
+            required:
+              - greeting
+            properties:
+                greeting:
+                    type: string
+
+paths:
+    /secure/bearer:
+        get:
+            operationId: BearerGet
+            # /// [bearer security requirement]
+            security:
+              - myBearerScheme: []
+            # /// [bearer security requirement]
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GreetingResponse'

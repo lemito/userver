@@ -13,5 +13,12 @@
         "password": "alice-password"
       }
     }
+  },
+  "http_bearer": {
+    "bearer": {
+      "myBearerScheme": {
+        "token": "user-1-token"
+      }
+    }
   }
 }
