@@ -6,6 +6,7 @@
 #include <userver/chaotic/openapi/client/config.hpp>
 #include <userver/chaotic/openapi/middlewares/manager.hpp>
 #include <userver/components/component_config.hpp>
+#include <userver/engine/mutex.hpp>
 #include <userver/yaml_config/schema.hpp>
 
 #include <userver/clients/http/client.hpp>
@@ -37,12 +38,23 @@ void SetCoreMiddlewares(std::optional<std::vector<USERVER_NAMESPACE::utils::NotN
 core_middlewares_ = std::move(core_middlewares);
 }
 
+void UpdateBearerAuthCredentials(
+USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme credentials
+) override;
+
 private:
+/// @brief Returns a copy of the credentials for the given scheme, or
+/// `std::nullopt` if the scheme is not configured.
+std::optional<USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentials> GetBearerAuthCredentials(
+const std::string& scheme_name
+) const;
+
 USERVER_NAMESPACE::chaotic::openapi::client::Config config_;
 USERVER_NAMESPACE::clients::http::Client& http_client_;
 USERVER_NAMESPACE::chaotic::openapi::MiddlewareManager middleware_manager_;
 std::unordered_map<std::string, std::shared_ptr<USERVER_NAMESPACE::chaotic::openapi::client::Middleware>> middlewares_;
 std::optional<std::vector<USERVER_NAMESPACE::utils::NotNull<USERVER_NAMESPACE::clients::http::MiddlewareBase*>>> core_middlewares_;
+mutable USERVER_NAMESPACE::engine::Mutex bearer_auth_mutex_;
 };
 
 }

@@ -4,6 +4,7 @@
 #include "requests.hpp"
 #include "responses.hpp"
 
+#include <userver/chaotic/openapi/client/bearer_auth.hpp>
 #include <userver/chaotic/openapi/client/command_control.hpp>
 #include <userver/chaotic/openapi/server/dependencies.hpp>
 
@@ -13,11 +14,25 @@ class Client {
 public:
     /// POST /testme
     /// A testing method to call
+    /// @note Requires HTTP Bearer authentication. The credentials for security
+    ///       scheme 'myBearerScheme' must be present in secdist
+    ///       under http_bearer.test.myBearerScheme.
+    ///       The credentials may also be updated at runtime via
+    ///       `UpdateBearerAuthCredentials()`.
     /// @throw testme::post::Exception
 
     virtual testme::post::Response TestmePost(
           const testme::post::Request& request,
           const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control = {}) = 0;
+
+    /// @brief Replaces the bearer auth credentials used by this client.
+    ///
+    /// The credentials are read from the dynamic config key
+    /// `USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials`
+    /// by the generated component and pushed here on every config update.
+    virtual void UpdateBearerAuthCredentials(
+        USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme credentials
+    ) = 0;
 
   virtual ~Client();
 };

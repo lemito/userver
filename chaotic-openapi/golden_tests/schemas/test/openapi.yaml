@@ -17,6 +17,8 @@ paths:
     /testme:
         post:
             description: A testing method to call
+            security:
+              - myBearerScheme: []
             parameters:
               - in: query
                 name: number
@@ -43,4 +45,9 @@ paths:
                             schema:
                                 type: string
 
-components: {}
+components:
+    securitySchemes:
+        myBearerScheme:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT

@@ -74,7 +74,7 @@ private:
   std::unordered_map<std::string, std::shared_ptr<USERVER_NAMESPACE::chaotic::openapi::client::Middleware>> middlewares_;
   std::optional<std::vector<USERVER_NAMESPACE::utils::NotNull<USERVER_NAMESPACE::clients::http::MiddlewareBase*>>> core_middlewares_;
   {% if spec.uses_bearer_security() %}
-  USERVER_NAMESPACE::engine::Mutex bearer_auth_mutex_;
+  mutable USERVER_NAMESPACE::engine::Mutex bearer_auth_mutex_;
   {% endif %}
 };
 
