@@ -47,7 +47,9 @@ public:
     ///
     /// The credentials are read from the dynamic config key
     /// `USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials`
-    /// by the generated component and pushed here on every config update.
+    /// (per-client section) by the generated component and pushed here on
+    /// every config update. Clients absent from the dynamic config keep the
+    /// credentials loaded from secdist.
     virtual void UpdateBearerAuthCredentials(
         USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme credentials
     ) = 0;

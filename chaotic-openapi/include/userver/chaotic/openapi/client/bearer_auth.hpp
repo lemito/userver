@@ -32,17 +32,26 @@ BearerAuthCredentials Parse(const formats::json::Value& value, formats::parse::T
 /// @brief Map from securityScheme name to its bearer credentials.
 using BearerAuthCredentialsByScheme = std::unordered_map<std::string, BearerAuthCredentials>;
 
-/// @brief Dynamic config key with bearer auth credentials of a generated client.
+/// @brief Map from client name to its bearer credentials by scheme.
+using BearerAuthCredentialsByClient = std::unordered_map<std::string, BearerAuthCredentialsByScheme>;
+
+/// @brief Dynamic config key with bearer auth credentials of generated clients.
+///
+/// The credentials loaded from secdist are the baseline; a dynamic config
+/// entry for a client replaces that client's credentials entirely. Clients
+/// absent from the dynamic config keep their secdist credentials.
 ///
 /// Expected dynamic config JSON layout:
 /// @code{.json}
 /// {
 ///   "BEARER_AUTH_CREDENTIALS": {
-///     "<scheme-name>": { "token": "raw-token" }
+///     "<client-name>": {
+///       "<scheme-name>": { "token": "raw-token" }
+///     }
 ///   }
 /// }
 /// @endcode
-inline const dynamic_config::Key<BearerAuthCredentialsByScheme> kBearerAuthCredentials{
+inline const dynamic_config::Key<BearerAuthCredentialsByClient> kBearerAuthCredentials{
     "BEARER_AUTH_CREDENTIALS", dynamic_config::DefaultAsJsonString{"{}"}
 };
 

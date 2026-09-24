@@ -22,6 +22,7 @@
 #include <userver/chaotic/openapi/client/bearer_auth.hpp>
 #include <userver/chaotic/openapi/client/digest_auth.hpp>
 #include <userver/storages/secdist/component.hpp>
+#include <userver/utils/algo.hpp>
 #include <userver/utils/assert.hpp>
 {% endif %}
 
@@ -138,7 +139,11 @@ Client& Component::GetClient() { return client_; }
 
 {% if spec.uses_bearer_security() %}
 void Component::OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
-    client_.UpdateBearerAuthCredentials(config[USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials]);
+    const auto& by_client = config[USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials];
+    const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(by_client, "{{ spec.client_name }}");
+    if (credentials && !credentials->empty()) {
+        client_.UpdateBearerAuthCredentials(*credentials);
+    }
 }
 {% endif %}
 
