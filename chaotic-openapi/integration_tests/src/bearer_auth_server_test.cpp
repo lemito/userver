@@ -538,6 +538,16 @@ TEST(BearerAuthServer, BearerFormatOverriddenByDynamicConfig) {
     );
 }
 
+TEST(BearerAuthServer, EmptyBearerFormatInDynamicConfigKeepsStaticValue) {
+    RunServer(
+        R"(        BEARER_AUTH_CHECKER_CONFIG:
+          handler-secure-get:
+            bearer_format: ''
+)",
+        kExpectedBearerFormat
+    );
+}
+
 TEST(BearerAuthServer, CheckerBearerFormatWinsOverHandlerState) {
     constexpr std::string_view kCheckerBearerFormat = "FROM-CHECKER";
     RunServer("", kCheckerBearerFormat, "{checker-reported-bearer-format: FROM-CHECKER}\n", kCheckerBearerFormat);

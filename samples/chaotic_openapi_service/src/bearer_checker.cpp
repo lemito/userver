@@ -17,16 +17,16 @@ namespace samples::auth {
 
 namespace {
 
-class AuthCheckerBearer final : public chaotic::openapi::server::BearerAuthChecker {
+class AuthCheckerBearer final : public USERVER_NAMESPACE::chaotic::openapi::server::BearerAuthChecker {
 public:
     explicit AuthCheckerBearer(std::unordered_map<std::string, std::uint64_t> tokens) : tokens_(std::move(tokens)) {}
 
-    std::optional<chaotic::openapi::server::BearerTokenData> VerifyToken(std::string_view token) const override {
+    std::optional<USERVER_NAMESPACE::chaotic::openapi::server::BearerTokenData> VerifyToken(std::string_view token) const override {
         const auto it = tokens_.find(std::string{token});
         if (it == tokens_.end()) {
             return std::nullopt;
         }
-        chaotic::openapi::server::BearerTokenData data;
+        USERVER_NAMESPACE::chaotic::openapi::server::BearerTokenData data;
         data.subject = std::to_string(it->second);
         return data;
     }
@@ -38,11 +38,11 @@ private:
 }  // namespace
 
 BearerCheckerFactory::BearerCheckerFactory(
-    const components::ComponentConfig& config,
-    const components::ComponentContext& context
+    const USERVER_NAMESPACE::components::ComponentConfig& config,
+    const USERVER_NAMESPACE::components::ComponentContext& context
 )
-    : components::ComponentBase(config, context),
-      tokens_(context.FindComponent<components::Secdist>().Get().Get<AuthTokens>().Get())
+    : USERVER_NAMESPACE::components::ComponentBase(config, context),
+      tokens_(context.FindComponent<USERVER_NAMESPACE::components::Secdist>().Get().Get<AuthTokens>().Get())
 {
     UASSERT_MSG(
         !tokens_.empty(),
@@ -50,9 +50,9 @@ BearerCheckerFactory::BearerCheckerFactory(
     );
 }
 
-std::unique_ptr<chaotic::openapi::server::BearerAuthChecker> BearerCheckerFactory::Create(
-    const components::ComponentConfig& /*config*/,
-    const components::ComponentContext& /*context*/
+std::unique_ptr<USERVER_NAMESPACE::chaotic::openapi::server::BearerAuthChecker> BearerCheckerFactory::Create(
+    const USERVER_NAMESPACE::components::ComponentConfig& /*config*/,
+    const USERVER_NAMESPACE::components::ComponentContext& /*context*/
 ) {
     return std::make_unique<AuthCheckerBearer>(tokens_);
 }

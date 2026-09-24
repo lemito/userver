@@ -8,7 +8,6 @@
 
 #include <userver/chaotic/openapi/server/bearer_auth.hpp>
 #include <userver/components/component_base.hpp>
-#include <userver/utest/using_namespace_userver.hpp>
 
 namespace samples::auth {
 
@@ -20,16 +19,19 @@ namespace samples::auth {
 ///   bearer_auth:
 ///     checker_component: bearer-auth-checker
 /// @endcode
-class BearerCheckerFactory final : public components::ComponentBase,
-                                   public chaotic::openapi::server::BearerAuthCheckerFactory {
+class BearerCheckerFactory final : public USERVER_NAMESPACE::components::ComponentBase,
+                                   public USERVER_NAMESPACE::chaotic::openapi::server::BearerAuthCheckerFactory {
 public:
     static constexpr std::string_view kName = "bearer-auth-checker";
 
-    BearerCheckerFactory(const components::ComponentConfig& config, const components::ComponentContext& context);
+    BearerCheckerFactory(
+        const USERVER_NAMESPACE::components::ComponentConfig& config,
+        const USERVER_NAMESPACE::components::ComponentContext& context
+    );
 
-    std::unique_ptr<chaotic::openapi::server::BearerAuthChecker> Create(
-        const components::ComponentConfig& config,
-        const components::ComponentContext& context
+    std::unique_ptr<USERVER_NAMESPACE::chaotic::openapi::server::BearerAuthChecker> Create(
+        const USERVER_NAMESPACE::components::ComponentConfig& config,
+        const USERVER_NAMESPACE::components::ComponentContext& context
     ) override;
 
 private:
