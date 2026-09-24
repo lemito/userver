@@ -35,4 +35,17 @@ sink.Flush();
 
 } // namespace
 
+namespace testme_secret::get {
+void SerializeRequest(const Request&, const std::string& base_url, USERVER_NAMESPACE::clients::http::Request& http_request)
+{
+openapi::ParameterSinkHttpClient sink(
+http_request,
+base_url + "/testme-secret"
+);
+
+sink.Flush();
+
+}
+} // namespace
+
 }

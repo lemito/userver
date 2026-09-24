@@ -2,6 +2,7 @@
 #pragma once
 
 #include <handlers/test/testme/post/handler.hpp>
+#include <handlers/test/testme-secret/get/handler.hpp>
 #include <userver/chaotic/openapi/server/dependencies.hpp>
 #include <userver/components/component_list.hpp>
 #include <userver/components/container.hpp>
@@ -18,6 +19,7 @@ namespace handlers::test {
 inline USERVER_NAMESPACE::components::ComponentList ChaoticHandlersList() {
 return USERVER_NAMESPACE::components::ComponentList()
 .Append<handlers::test::testme::post::Handler>()
+.Append<handlers::test::testme_secret::get::Handler>()
 ;
 }
 

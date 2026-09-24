@@ -24,6 +24,15 @@ public:
     virtual testme::post::Response TestmePost(
           const testme::post::Request& request,
           const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control = {}) = 0;
+    /// GET /testme-secret
+    /// A digest-protected method to call
+    /// @note Requires HTTP Digest authentication. The credentials for security
+    ///       scheme 'myDigestScheme' must be present in secdist
+    ///       under http_digest.test.myDigestScheme.
+    /// @throw testme_secret::get::Exception
+
+    virtual testme_secret::get::Response TestmeSecretGet(
+          const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control = {}) = 0;
 
     /// @brief Replaces the bearer auth credentials used by this client.
     ///

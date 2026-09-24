@@ -25,6 +25,7 @@
 #include <hello_handler.hpp>
 
 #include "auth_bearer.hpp"
+#include "bearer_checker.hpp"
 
 int main(int argc, char* argv[]) {
     /// [digest-auth-checker-registration]
@@ -62,7 +63,9 @@ int main(int argc, char* argv[]) {
             .Append<USERVER_NAMESPACE::components::Container<
                 USERVER_NAMESPACE::chaotic::openapi::server::dependencies::Factories>>()
             .AppendComponentList(::handlers::insecure::ChaoticHandlersList())
-            .AppendComponentList(::handlers::secure::ChaoticHandlersList());
+            .AppendComponentList(::handlers::secure::ChaoticHandlersList())
+            /// [register-bearer-checker]
+            .Append<samples::auth::BearerCheckerFactory>();
     /// [register-handlers]
 
     USERVER_NAMESPACE::chaotic::openapi::middlewares::AppendDefaultMiddlewares(component_list);

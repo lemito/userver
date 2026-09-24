@@ -5,7 +5,7 @@ import pytest
 
 pytest_plugins = ['pytest_userver.plugins.core']
 
-USERVER_CONFIG_HOOKS = ['userver_config_client', 'userver_config_secure_client']
+USERVER_CONFIG_HOOKS = ['userver_config_client', 'userver_config_secure_client', 'userver_config_bearer_client']
 SERVICE_SOURCE_DIR = pathlib.Path(__file__).parent.parent
 
 
@@ -45,3 +45,14 @@ def userver_config_secure_client(mockserver_info):
 
     return do_patch
     # /// [digest-client-url]
+
+
+# /// [bearer-client-url]
+@pytest.fixture(scope='session')
+def userver_config_bearer_client(mockserver_info):
+    def do_patch(config_yaml, config_vars):
+        components = config_yaml['components_manager']['components']
+        components['bearer-client']['base-url'] = mockserver_info.url('api')
+
+    return do_patch
+    # /// [bearer-client-url]

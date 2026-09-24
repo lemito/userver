@@ -8,7 +8,9 @@
 #include <userver/logging/log.hpp>
 #include <userver/chaotic/openapi/parameters_read.hpp>
 
+#include <userver/chaotic/primitive.hpp>
 #include <userver/chaotic/sax_parser.hpp>
+#include <userver/chaotic/validators.hpp>
 
 namespace clients::test {
 namespace testme::post {
@@ -30,6 +32,31 @@ switch (status_code) {
         r.X_Header = openapi::ParameterParser<Header::Base>::Parse(std::string{it->second});
       }
     }
+
+      return r;
+
+  }
+
+default:
+  throw ExceptionWithStatusCode(status_code);
+}
+}
+}
+namespace testme_secret::get {
+Response ParseResponse(USERVER_NAMESPACE::clients::http::Response& http_response)
+{
+auto status_code = static_cast<int>(http_response.status_code());
+switch (status_code) {
+  case 200:
+  {
+    Response200 r{};
+          try {
+            auto json = USERVER_NAMESPACE::formats::json::FromString(http_response.body());
+            r.body = json.As<USERVER_NAMESPACE::chaotic::Primitive<std::string>>();
+          } catch (const std::exception& e) {
+            LOG_ERROR() << "Failed to parse JSON response body: " << e;
+            throw ExceptionWithStatusCode(200);
+          }
 
       return r;
 

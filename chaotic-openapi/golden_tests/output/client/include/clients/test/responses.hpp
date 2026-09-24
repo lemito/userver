@@ -6,6 +6,7 @@
 #include <clients/test/exceptions.hpp>
 #include <userver/chaotic/openapi/client/exceptions.hpp>
 #include <optional>
+#include <string>
 
 #include <clients/test/openapi.hpp>
 
@@ -21,6 +22,17 @@ namespace testme::post {
 
   struct Response200{
         std::optional<std::string>X_Header;
+
+  };
+
+  using Response =Response200;
+
+Response ParseResponse(USERVER_NAMESPACE::clients::http::Response& response);
+}
+namespace testme_secret::get {
+
+  struct Response200{                // {'application/json': CppPrimitiveType(raw_cpp_type=TypeName("std::string"), json_schema=String(x_properties={}, title='', description='', example='', source_location_=SourceLocation(filepath='openapi.yaml', location='/paths/[/testme-secret]/get/responses/200/content/application/json/schema'), type='string', default=None, nullable=False, enum=None, pattern=None, format=None, minLength=None, maxLength=None, deprecated=False), nullable=False, user_cpp_type=None, default=None, validators=CppPrimitiveValidator(min=None, max=None, exclusiveMin=None, exclusiveMax=None, minLength=None, maxLength=None, pattern=None, namespace='::clients::test::testme_secret::get', prefix='Response200BodyApplicationJson'))}
+      std::string body;
 
   };
 

@@ -24,5 +24,8 @@ array;
 
 void SerializeRequest(const Request& request, const std::string& base_url, USERVER_NAMESPACE::clients::http::Request& http_request);
 }
+namespace testme_secret::get {        struct Request {};
+void SerializeRequest(const Request& request, const std::string& base_url, USERVER_NAMESPACE::clients::http::Request& http_request);
+}
 
 }

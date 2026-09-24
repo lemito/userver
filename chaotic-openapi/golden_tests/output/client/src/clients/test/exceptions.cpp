@@ -34,5 +34,22 @@ TimeoutException::~TimeoutException() = default;
 ExceptionWithStatusCode::~ExceptionWithStatusCode() = default;
 
 }  // namespace testme::post
+namespace testme_secret::get {
+
+const char* Exception::what() const noexcept {
+    return kHandlerInfo.c_str();
+}
+
+HttpException::~HttpException() = default;
+
+TimeoutException::TimeoutException()
+  : HttpException(USERVER_NAMESPACE::clients::http::ErrorKind::kTimeout)
+{}
+
+TimeoutException::~TimeoutException() = default;
+
+ExceptionWithStatusCode::~ExceptionWithStatusCode() = default;
+
+}  // namespace testme_secret::get
 
 }  // namespace clients::test

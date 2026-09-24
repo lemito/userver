@@ -85,6 +85,14 @@ components_manager:
                 types:
                   - bearer  # Authorization type that was registered in main()
 
+        handler-bearer-get:  # Generated handler, overrides the config.chaotic.yaml fragment.
+            bearer_auth:  # Bearer auth config for this handler
+                checker_component: bearer-auth-checker  # Component that verifies bearer tokens
+
+        # /// [bearer-checker-config]
+        bearer-auth-checker:  # Creates BearerAuthChecker instances for the generated handlers
+        # /// [bearer-checker-config]
+
         dynamic-config:
             updates-enabled: true
             fs-task-processor: fs-task-processor

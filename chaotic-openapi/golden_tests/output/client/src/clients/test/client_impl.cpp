@@ -69,5 +69,42 @@ try {
 
 return testme::post::ParseResponse(*response);
 }
+testme_secret::get::Response ClientImpl::TestmeSecretGet(          const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control
+) {
+auto r = http_client_.CreateRequest();
+r.SetUrlTemplate("/testme-secret");
+
+if (core_middlewares_) {
+    r.SetMiddlewaresList(*core_middlewares_);
+}
+ApplyConfig(r, command_control, config_);testme_secret::get::Request request;        SerializeRequest(request, config_.base_url, r);
+
+// Apply digest auth credentials for scheme 'myDigestScheme'
+const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(
+    config_.digest_auth_credentials, "myDigestScheme"
+);
+UINVARIANT(
+    credentials != nullptr,
+    "Digest auth credentials for scheme 'myDigestScheme' not found in config"
+);
+r.http_auth_type(
+    USERVER_NAMESPACE::clients::http::HttpAuthType::kDigest,
+    /*auth_only=*/false,
+    credentials->username,
+    credentials->password.GetUnderlying()
+);
+
+middleware_manager_.ProcessRequest(r);
+
+std::shared_ptr<USERVER_NAMESPACE::clients::http::Response> response;
+try {
+    response = r.perform();
+    middleware_manager_.ProcessResponse(*response);
+} catch (const USERVER_NAMESPACE::clients::http::TimeoutException& e) {
+    throw testme_secret::get::TimeoutException();
+}
+
+return testme_secret::get::ParseResponse(*response);
+}
 
 }  // namespace clients::test

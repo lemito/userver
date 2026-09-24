@@ -13,6 +13,18 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/GreetingResponse'
+    /secure/bearer:
+        get:
+            operationId: BearerGet
+            security:
+              - myBearerScheme: []
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GreetingResponse'
     /secure/secret:
         get:
             operationId: SecretGet
@@ -30,6 +42,10 @@ components:
         myDigestScheme:
             type: http
             scheme: digest
+        myBearerScheme:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
     schemas:
         GreetingResponse:
             type: object

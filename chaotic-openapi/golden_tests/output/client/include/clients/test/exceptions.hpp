@@ -74,5 +74,46 @@ class ExceptionWithStatusCode
 };
 
 }  // namespace testme::post
+namespace testme_secret::get {
+
+/// @brief Base exception class for all client GET operations with URL '/testme-secret'
+class Exception: public ::clients::test::Exception {
+ public:
+    const char* what() const noexcept override;
+
+    static constexpr USERVER_NAMESPACE::utils::zstring_view kHandlerInfo{"GET /testme-secret"};
+};
+
+/// @brief Error response with ErrorKind for all client GET operations with URL '/testme-secret'
+class HttpException
+    : public Exception
+    , public ::clients::test::HttpException
+{
+  public:
+    using ::clients::test::HttpException::HttpException;
+    ~HttpException();
+};
+
+/// @brief Timeout exception class for all client GET operations with URL '/testme-secret'
+class TimeoutException
+    : public HttpException
+    , public ::clients::test::TimeoutException
+{
+  public:
+    TimeoutException();
+    ~TimeoutException();
+};
+
+/// @brief Error response with HTTP status code for all client GET operations with URL '/testme-secret'
+class ExceptionWithStatusCode
+    : public Exception
+    , public ::clients::test::ExceptionWithStatusCode
+{
+  public:
+    using ::clients::test::ExceptionWithStatusCode::ExceptionWithStatusCode;
+    ~ExceptionWithStatusCode();
+};
+
+}  // namespace testme_secret::get
 
 }  // namespace clients::test

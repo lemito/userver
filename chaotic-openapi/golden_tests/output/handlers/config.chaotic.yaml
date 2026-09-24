@@ -5,3 +5,9 @@ components_manager:
       method: POST
       bearer_auth:
         bearer_format: JWT
+    handler-testme-secret-get:
+      path: /testme-secret
+      method: GET
+      auth:
+        types:
+        - myDigestScheme

@@ -44,6 +44,18 @@ paths:
                         X-Header:
                             schema:
                                 type: string
+    /testme-secret:
+        get:
+            description: A digest-protected method to call
+            security:
+              - myDigestScheme: []
+            responses:
+                200:
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: string
 
 components:
     securitySchemes:
@@ -51,3 +63,6 @@ components:
             type: http
             scheme: bearer
             bearerFormat: JWT
+        myDigestScheme:
+            type: http
+            scheme: digest

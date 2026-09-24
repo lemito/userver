@@ -29,6 +29,19 @@ const USERVER_NAMESPACE::components::ComponentConfig& config,
 const USERVER_NAMESPACE::components::ComponentContext& context) {
 auto cfg = USERVER_NAMESPACE::chaotic::openapi::client::ParseConfig(config, ClientImpl::kDefaultBaseUrl);
 const auto& secdist = context.FindComponent<USERVER_NAMESPACE::components::Secdist>().Get();
+const auto& digest_cfg = secdist.Get<USERVER_NAMESPACE::chaotic::openapi::client::DigestAuthSecdistConfig>();
+
+{
+const auto [it, inserted] = cfg.digest_auth_credentials.emplace(
+    "myDigestScheme",
+    digest_cfg.GetCredentialsOrThrow("test", "myDigestScheme")
+);
+UINVARIANT(
+    inserted,
+    "Duplicate digest auth scheme 'myDigestScheme' for client 'test'; "
+    "scheme names must be unique — this is a chaotic-openapi codegen bug, please report it"
+);
+}
 
 const auto& bearer_cfg = secdist.Get<USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthSecdistConfig>();
 

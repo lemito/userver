@@ -13,12 +13,15 @@ add_library(
     src/auth_bearer.cpp
     src/auth_digest.hpp
     src/auth_digest.cpp
+    src/auth_tokens.hpp
+    src/bearer_checker.hpp
+    src/bearer_checker.cpp
     src/say_hello.hpp
     src/say_hello.cpp
     src/hello_handler.hpp
     src/hello_handler.cpp
 )
-target_link_libraries(${PROJECT_NAME}_objs userver::core)
+target_link_libraries(${PROJECT_NAME}_objs userver::core userver::chaotic-openapi)
 target_include_directories(${PROJECT_NAME}_objs PUBLIC src)
 
 add_executable(${PROJECT_NAME} main.cpp)
@@ -65,6 +68,7 @@ userver_target_generate_openapi_handlers(
 )
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}-handler-insecure_objs)
 target_link_libraries(${PROJECT_NAME}-handler-insecure_objs ${PROJECT_NAME}-client-secure_objs)
+target_link_libraries(${PROJECT_NAME}-handler-insecure_objs ${PROJECT_NAME}-client-bearer_objs)
 # /// [chaotic-handler]
 
 # /// [digest-handler-cmake] cmake

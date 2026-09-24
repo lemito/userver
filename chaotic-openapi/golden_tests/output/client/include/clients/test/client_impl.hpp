@@ -19,6 +19,8 @@ public:
 
 testme::post::Response TestmePost(const testme::post::Request& request ,          const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control = {}
 ) override;
+testme_secret::get::Response TestmeSecretGet(          const USERVER_NAMESPACE::chaotic::openapi::client::CommandControl& command_control = {}
+) override;
 
 // end of API
 

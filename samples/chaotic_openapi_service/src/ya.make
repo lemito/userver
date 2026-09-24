@@ -17,10 +17,13 @@ ADDINCL(
 SRCS(
     auth_bearer.cpp
     auth_digest.cpp
+    bearer_checker.cpp
     hello_handler.cpp
     say_hello.cpp
+    handlers/insecure/callbearerget/view.cpp
     handlers/insecure/callsecretget/view.cpp
     handlers/insecure/insecuresecretpost/view.cpp
+    handlers/secure/bearerget/view.cpp
     handlers/secure/greetingget/view.cpp
     handlers/secure/secretget/view.cpp
 )
@@ -109,6 +112,7 @@ RUN_PROGRAM(
     OUTPUT_INCLUDES
         ${CHAOTIC_INCLUDES}
         ${CHAOTIC_OPENAPI_INCLUDES}
+        handlers/insecure/callbearerget/view.hpp
         handlers/insecure/callsecretget/view.hpp
         handlers/insecure/insecuresecretpost/view.hpp
     IN_NOPARSE
@@ -121,14 +125,20 @@ RUN_PROGRAM(
 
         src/handlers/insecure/openapi.cpp
 
+        include/handlers/insecure/callbearerget/handler.hpp
         include/handlers/insecure/callsecretget/handler.hpp
         include/handlers/insecure/insecuresecretpost/handler.hpp
         include/handlers/insecure/chaotic_handlers_list.hpp
+        include/handlers/insecure/callbearerget/requests.hpp
+        include/handlers/insecure/callbearerget/responses.hpp
         include/handlers/insecure/callsecretget/requests.hpp
         include/handlers/insecure/callsecretget/responses.hpp
         include/handlers/insecure/insecuresecretpost/requests.hpp
         include/handlers/insecure/insecuresecretpost/responses.hpp
 
+        src/handlers/insecure/callbearerget/handler.cpp
+        src/handlers/insecure/callbearerget/requests.cpp
+        src/handlers/insecure/callbearerget/responses.cpp
         src/handlers/insecure/callsecretget/handler.cpp
         src/handlers/insecure/callsecretget/requests.cpp
         src/handlers/insecure/callsecretget/responses.cpp
@@ -149,6 +159,7 @@ RUN_PROGRAM(
     OUTPUT_INCLUDES
         ${CHAOTIC_INCLUDES}
         ${CHAOTIC_OPENAPI_INCLUDES}
+        handlers/secure/bearerget/view.hpp
         handlers/secure/greetingget/view.hpp
         handlers/secure/secretget/view.hpp
     IN_NOPARSE
@@ -161,14 +172,20 @@ RUN_PROGRAM(
 
         secure-gen/src/handlers/secure/openapi.cpp
 
+        secure-gen/include/handlers/secure/bearerget/handler.hpp
         secure-gen/include/handlers/secure/greetingget/handler.hpp
         secure-gen/include/handlers/secure/secretget/handler.hpp
         secure-gen/include/handlers/secure/chaotic_handlers_list.hpp
+        secure-gen/include/handlers/secure/bearerget/requests.hpp
+        secure-gen/include/handlers/secure/bearerget/responses.hpp
         secure-gen/include/handlers/secure/greetingget/requests.hpp
         secure-gen/include/handlers/secure/greetingget/responses.hpp
         secure-gen/include/handlers/secure/secretget/requests.hpp
         secure-gen/include/handlers/secure/secretget/responses.hpp
 
+        secure-gen/src/handlers/secure/bearerget/handler.cpp
+        secure-gen/src/handlers/secure/bearerget/requests.cpp
+        secure-gen/src/handlers/secure/bearerget/responses.cpp
         secure-gen/src/handlers/secure/greetingget/handler.cpp
         secure-gen/src/handlers/secure/greetingget/requests.cpp
         secure-gen/src/handlers/secure/greetingget/responses.cpp
