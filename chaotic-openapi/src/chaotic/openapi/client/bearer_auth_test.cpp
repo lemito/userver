@@ -2,8 +2,10 @@
 
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include <gtest/gtest.h>
+#include <userver/formats/json/exception.hpp>
 #include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value.hpp>
 #include <userver/formats/parse/to.hpp>
@@ -74,6 +76,13 @@ TEST(BearerAuthCredentials, ParseReadsToken) {
     );
 
     EXPECT_EQ(credentials.token.GetUnderlying(), "raw-token");
+}
+
+TEST(BearerAuthCredentials, ParseRejectsMissingToken) {
+    EXPECT_THROW(
+        client_ns::Parse(MakeDoc("{}"), formats::parse::To<client_ns::BearerAuthCredentials>{}),
+        formats::json::MemberMissingException
+    );
 }
 
 }  // namespace

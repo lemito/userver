@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -445,6 +444,16 @@ components_manager:
     );
 }
 
+components::ComponentList MakeComponentList() {
+    return components::MinimalServerComponentList()
+        .Append<components::Container<chaotic_server::dependencies::Factories>>()
+        .AppendComponentList(handlers::bearer_auth::ChaoticHandlersList())
+        .AppendComponentList(handlers::legacy_bearer::ChaoticHandlersList())
+        .Append<TestBearerAuthCheckerFactory>()
+        .Append<TestAdminBearerAuthCheckerFactory>()
+        .Append<BearerAuthServerTester>();
+}
+
 void RunServer(
     std::string_view dynamic_config_defaults,
     std::string_view expected_bearer_format,
@@ -467,16 +476,7 @@ void RunServer(
         expected_second_handler_bearer_format
     );
 
-    components::RunOnce(
-        components::InMemoryConfig{config},
-        components::MinimalServerComponentList()
-            .Append<components::Container<chaotic_server::dependencies::Factories>>()
-            .AppendComponentList(handlers::bearer_auth::ChaoticHandlersList())
-            .AppendComponentList(handlers::legacy_bearer::ChaoticHandlersList())
-            .Append<TestBearerAuthCheckerFactory>()
-            .Append<TestAdminBearerAuthCheckerFactory>()
-            .Append<BearerAuthServerTester>()
-    );
+    components::RunOnce(components::InMemoryConfig{config}, MakeComponentList());
 }
 
 void ExpectStartupFails(std::string_view secure_bearer_auth, std::string_view expected_message) {
@@ -484,16 +484,7 @@ void ExpectStartupFails(std::string_view secure_bearer_auth, std::string_view ex
     const auto config = MakeConfig(listener, "", kExpectedBearerFormat, secure_bearer_auth);
 
     try {
-        components::RunOnce(
-            components::InMemoryConfig{config},
-            components::MinimalServerComponentList()
-                .Append<components::Container<chaotic_server::dependencies::Factories>>()
-                .AppendComponentList(handlers::bearer_auth::ChaoticHandlersList())
-                .AppendComponentList(handlers::legacy_bearer::ChaoticHandlersList())
-                .Append<TestBearerAuthCheckerFactory>()
-                .Append<TestAdminBearerAuthCheckerFactory>()
-                .Append<BearerAuthServerTester>()
-        );
+        components::RunOnce(components::InMemoryConfig{config}, MakeComponentList());
         FAIL() << "the service started with an invalid bearer_auth section";
     } catch (const std::exception& ex) {
         EXPECT_NE(std::string{ex.what()}.find(expected_message), std::string::npos)
