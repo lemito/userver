@@ -23,3 +23,15 @@ paths:
                         application/json:
                             schema:
                                 type: string
+    /api/resource:
+        get:
+            operationId: GetResource
+            security:
+              - myBearerScheme: []
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: string
