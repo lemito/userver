@@ -9,6 +9,10 @@ components:
             type: http
             scheme: bearer
             bearerFormat: JWT
+        adminBearerScheme:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
 
 paths:
     /secure:
@@ -28,6 +32,18 @@ paths:
             operationId: GetResource
             security:
               - myBearerScheme: []
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+    /api/admin:
+        get:
+            operationId: AdminGet
+            security:
+              - adminBearerScheme: []
             responses:
                 '200':
                     description: OK

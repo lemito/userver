@@ -1,0 +1,23 @@
+#include <fmt/format.h>
+
+#include <handlers/bearer_auth/adminget/handler.hpp>
+
+namespace handlers::bearer_auth::adminget {
+
+Response View::Handle(
+    Request&& /*request*/,
+    Deps&& /*deps*/,
+    RequestContext& context
+) {
+    const auto token_data = Handler::GetBearerTokenData(context);
+    if (!token_data) {
+        throw USERVER_NAMESPACE::server::handlers::Unauthorized(
+            USERVER_NAMESPACE::server::handlers::ExternalBody{"No bearer token data"}
+        );
+    }
+    Response response;
+    response.body = fmt::format("{}:{}", token_data->subject, token_data->bearer_format);
+    return response;
+}
+
+}  // namespace handlers::bearer_auth::adminget

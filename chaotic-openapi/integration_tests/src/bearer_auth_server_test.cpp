@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -42,9 +43,16 @@ namespace {
 namespace chaotic_server = USERVER_NAMESPACE::chaotic::openapi::server;
 
 constexpr std::string_view kValidToken = "valid-token-123";
+constexpr std::string_view kAdminToken = "admin-token-456";
 constexpr std::string_view kSubject = "test-subject";
+constexpr std::string_view kAdminSubject = "test-admin-subject";
 constexpr std::string_view kExpectedBearerFormat = "JWT";
 constexpr std::uint64_t kLegacyUserId = 42;
+
+constexpr std::string_view kDefaultBearerAuth =
+    "      bearer_auth:\n"
+    "        checker_component: test-bearer-auth-checker\n"
+    "        bearer_format: JWT\n";
 
 struct ListenerReservation final {
     std::uint16_t port{};
@@ -65,14 +73,23 @@ ListenerReservation ReserveListener() {
 
 class TestBearerAuthChecker final : public chaotic_server::BearerAuthChecker {
 public:
+    explicit TestBearerAuthChecker(std::string reported_bearer_format)
+        : reported_bearer_format_(std::move(reported_bearer_format)) {}
+
     std::optional<chaotic_server::BearerTokenData> VerifyToken(std::string_view token) const override {
         if (token != kValidToken) {
             return std::nullopt;
         }
         chaotic_server::BearerTokenData data;
         data.subject = std::string{kSubject};
+        if (!reported_bearer_format_.empty()) {
+            data.bearer_format = reported_bearer_format_;
+        }
         return data;
     }
+
+private:
+    const std::string reported_bearer_format_;
 };
 
 class TestBearerAuthCheckerFactory final
@@ -82,20 +99,67 @@ public:
     static constexpr std::string_view kName = "test-bearer-auth-checker";
 
     TestBearerAuthCheckerFactory(const components::ComponentConfig& config, const components::ComponentContext& context)
-        : ComponentBase(config, context) {}
+        : ComponentBase(config, context),
+          reported_bearer_format_(config["checker-reported-bearer-format"].As<std::string>("")) {}
 
     std::unique_ptr<chaotic_server::BearerAuthChecker> Create(
         const components::ComponentConfig& config,
         const components::ComponentContext& /*context*/
     ) override {
         bearer_format_ = config["bearer_auth"]["bearer_format"].As<std::string>("");
-        return std::make_unique<TestBearerAuthChecker>();
+        return std::make_unique<TestBearerAuthChecker>(reported_bearer_format_);
     }
 
     const std::string& GetBearerFormat() const { return bearer_format_; }
 
+    static yaml_config::Schema GetStaticConfigSchema() {
+        return yaml_config::MergeSchemas<components::ComponentBase>(R"(
+type: object
+description: Creates test bearer auth checkers
+additionalProperties: false
+properties:
+    checker-reported-bearer-format:
+        type: string
+        description: bearer format that checkers put into the verified token data
+)");
+    }
+
 private:
+    const std::string reported_bearer_format_;
     std::string bearer_format_;
+};
+
+class TestAdminBearerAuthChecker final : public chaotic_server::BearerAuthChecker {
+public:
+    std::optional<chaotic_server::BearerTokenData> VerifyToken(std::string_view token) const override {
+        if (token != kAdminToken) {
+            return std::nullopt;
+        }
+        chaotic_server::BearerTokenData data;
+        data.subject = std::string{kAdminSubject};
+        data.bearer_format = kExpectedBearerFormat;
+        return data;
+    }
+};
+
+class TestAdminBearerAuthCheckerFactory final
+    : public components::ComponentBase,
+      public chaotic_server::BearerAuthCheckerFactory {
+public:
+    static constexpr std::string_view kName = "test-admin-bearer-auth-checker";
+
+    TestAdminBearerAuthCheckerFactory(
+        const components::ComponentConfig& config,
+        const components::ComponentContext& context
+    )
+        : ComponentBase(config, context) {}
+
+    std::unique_ptr<chaotic_server::BearerAuthChecker> Create(
+        const components::ComponentConfig& /*config*/,
+        const components::ComponentContext& /*context*/
+    ) override {
+        return std::make_unique<TestAdminBearerAuthChecker>();
+    }
 };
 
 class LegacyAuthCheckerBearer final : public server::handlers::auth::AuthCheckerBase {
@@ -166,7 +230,10 @@ public:
         : ComponentBase(config, context),
           factory_(context.FindComponent<TestBearerAuthCheckerFactory>()),
           port_(config["port"].As<std::uint16_t>()),
-          expected_bearer_format_(config["expected-bearer-format"].As<std::string>("")) {
+          expected_bearer_format_(config["expected-bearer-format"].As<std::string>("")),
+          expected_second_handler_bearer_format_(
+              config["expected-second-handler-bearer-format"].As<std::string>(kExpectedBearerFormat)
+          ) {
         context.FindComponent<components::Server>();
     }
 
@@ -184,6 +251,9 @@ properties:
     expected-bearer-format:
         type: string
         description: bearer format the /secure handler must report to the view
+    expected-second-handler-bearer-format:
+        type: string
+        description: bearer format the /api/resource handler must report to the view
 )");
     }
 
@@ -207,6 +277,9 @@ private:
         TestInvalidToken();
         TestLowercaseBearerPrefix();
         TestSecondHandler();
+        TestAdminHandler();
+        TestAdminHandlerRejectsUserToken();
+        TestUserHandlerRejectsAdminToken();
         TestBearerFormatPropagation();
         TestLegacyValidToken();
         TestLegacyMissingHeader();
@@ -238,11 +311,26 @@ private:
     void TestSecondHandler() {
         const auto response = Get("/api/resource", fmt::format("Bearer {}", kValidToken));
         EXPECT_EQ(response->status_code(), clients::http::Status::kOk);
-        EXPECT_EQ(ParseJsonStringBody(*response), kSubject);
+        EXPECT_EQ(ParseJsonStringBody(*response), fmt::format("{}:{}", kSubject, expected_second_handler_bearer_format_));
     }
 
-    void TestBearerFormatPropagation() {
-        EXPECT_EQ(factory_.GetBearerFormat(), kExpectedBearerFormat);
+    void TestAdminHandler() {
+        const auto response = Get("/api/admin", fmt::format("Bearer {}", kAdminToken));
+        EXPECT_EQ(response->status_code(), clients::http::Status::kOk);
+        EXPECT_EQ(ParseJsonStringBody(*response), fmt::format("{}:{}", kAdminSubject, kExpectedBearerFormat));
+    }
+
+    void TestAdminHandlerRejectsUserToken() {
+        const auto response = Get("/api/admin", fmt::format("Bearer {}", kValidToken));
+        EXPECT_EQ(response->status_code(), clients::http::Status::kUnauthorized);
+    }
+
+    void TestUserHandlerRejectsAdminToken() {
+        const auto response = Get("/secure", fmt::format("Bearer {}", kAdminToken));
+        EXPECT_EQ(response->status_code(), clients::http::Status::kUnauthorized);
+    }
+
+    void TestBearerFormatPropagation() {        EXPECT_EQ(factory_.GetBearerFormat(), kExpectedBearerFormat);
     }
 
     void TestLegacyValidToken() {
@@ -264,6 +352,7 @@ private:
     const TestBearerAuthCheckerFactory& factory_;
     const std::uint16_t port_;
     const std::string expected_bearer_format_;
+    const std::string expected_second_handler_bearer_format_;
     std::shared_ptr<clients::http::Client> client_;
 };
 
@@ -272,12 +361,18 @@ private:
 template <>
 inline constexpr bool components::kHasValidate<BearerAuthServerTester> = true;
 
+template <>
+inline constexpr bool components::kHasValidate<TestBearerAuthCheckerFactory> = true;
+
 namespace {
 
 std::string MakeConfig(
     const ListenerReservation& listener,
     std::string_view dynamic_config_defaults,
-    std::string_view expected_bearer_format
+    std::string_view expected_bearer_format,
+    std::string_view secure_bearer_auth = kDefaultBearerAuth,
+    std::string_view checker_config = "{}\n",
+    std::string_view expected_second_handler_bearer_format = kExpectedBearerFormat
 ) {
     return fmt::format(
         R"(
@@ -308,9 +403,7 @@ components_manager:
       path: /secure
       method: GET
       task_processor: main-task-processor
-      bearer_auth:
-        checker_component: test-bearer-auth-checker
-        bearer_format: JWT
+{3}
     handler-get-resource:
       path: /api/resource
       method: GET
@@ -325,22 +418,39 @@ components_manager:
       auth:
         types:
           - bearer
+    handler-admin-get:
+      path: /api/admin
+      method: GET
+      task_processor: main-task-processor
+      bearer_auth:
+        checker_component: test-admin-bearer-auth-checker
+        bearer_format: JWT
     dynamic-config:
       defaults:
 {2}
-    test-bearer-auth-checker: {{}}
+    test-bearer-auth-checker: {5}
+    test-admin-bearer-auth-checker: {{}}
     bearer-auth-server-tester:
       port: {1}
-      expected-bearer-format: {3}
+      expected-bearer-format: {4}
+      expected-second-handler-bearer-format: {6}
 )",
         listener.fd.GetNative(),
         listener.port,
         dynamic_config_defaults,
-        expected_bearer_format
+        secure_bearer_auth,
+        expected_bearer_format,
+        checker_config,
+        expected_second_handler_bearer_format
     );
 }
 
-void RunServer(std::string_view dynamic_config_defaults, std::string_view expected_bearer_format) {
+void RunServer(
+    std::string_view dynamic_config_defaults,
+    std::string_view expected_bearer_format,
+    std::string_view checker_config = "{}\n",
+    std::string_view expected_second_handler_bearer_format = kExpectedBearerFormat
+) {
     static const bool legacy_checker_registered = [] {
         server::handlers::auth::RegisterAuthCheckerFactory<LegacyAuthCheckerFactory>();
         return true;
@@ -348,7 +458,14 @@ void RunServer(std::string_view dynamic_config_defaults, std::string_view expect
     static_cast<void>(legacy_checker_registered);
 
     const auto listener = ReserveListener();
-    const auto config = MakeConfig(listener, dynamic_config_defaults, expected_bearer_format);
+    const auto config = MakeConfig(
+        listener,
+        dynamic_config_defaults,
+        expected_bearer_format,
+        kDefaultBearerAuth,
+        checker_config,
+        expected_second_handler_bearer_format
+    );
 
     components::RunOnce(
         components::InMemoryConfig{config},
@@ -357,14 +474,54 @@ void RunServer(std::string_view dynamic_config_defaults, std::string_view expect
             .AppendComponentList(handlers::bearer_auth::ChaoticHandlersList())
             .AppendComponentList(handlers::legacy_bearer::ChaoticHandlersList())
             .Append<TestBearerAuthCheckerFactory>()
+            .Append<TestAdminBearerAuthCheckerFactory>()
             .Append<BearerAuthServerTester>()
     );
+}
+
+void ExpectStartupFails(std::string_view secure_bearer_auth, std::string_view expected_message) {
+    const auto listener = ReserveListener();
+    const auto config = MakeConfig(listener, "", kExpectedBearerFormat, secure_bearer_auth);
+
+    try {
+        components::RunOnce(
+            components::InMemoryConfig{config},
+            components::MinimalServerComponentList()
+                .Append<components::Container<chaotic_server::dependencies::Factories>>()
+                .AppendComponentList(handlers::bearer_auth::ChaoticHandlersList())
+                .AppendComponentList(handlers::legacy_bearer::ChaoticHandlersList())
+                .Append<TestBearerAuthCheckerFactory>()
+                .Append<TestAdminBearerAuthCheckerFactory>()
+                .Append<BearerAuthServerTester>()
+        );
+        FAIL() << "the service started with an invalid bearer_auth section";
+    } catch (const std::exception& ex) {
+        EXPECT_NE(std::string{ex.what()}.find(expected_message), std::string::npos)
+            << "unexpected startup error: " << ex.what();
+    }
 }
 
 }  // namespace
 
 TEST(BearerAuthServer, EndToEnd) {
     RunServer("", kExpectedBearerFormat);
+}
+
+TEST(BearerAuthServer, FailsToStartWithoutCheckerComponent) {
+    ExpectStartupFails(
+        "      bearer_auth:\n"
+        "        bearer_format: JWT\n",
+        "static config validation"
+    );
+}
+
+TEST(BearerAuthServer, FailsToStartWithEmptyCheckerComponent) {
+    ExpectStartupFails(
+        "      bearer_auth:\n"
+        "        checker_component: ''\n"
+        "        bearer_format: JWT\n",
+        "is not set in its static config"
+    );
 }
 
 TEST(BearerAuthServer, BearerFormatOverriddenByDynamicConfig) {
@@ -376,6 +533,11 @@ TEST(BearerAuthServer, BearerFormatOverriddenByDynamicConfig) {
 )",
         kDynamicBearerFormat
     );
+}
+
+TEST(BearerAuthServer, CheckerBearerFormatWinsOverHandlerState) {
+    constexpr std::string_view kCheckerBearerFormat = "FROM-CHECKER";
+    RunServer("", kCheckerBearerFormat, "{checker-reported-bearer-format: FROM-CHECKER}\n", kCheckerBearerFormat);
 }
 
 USERVER_NAMESPACE_END

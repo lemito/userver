@@ -1,3 +1,5 @@
+#include <fmt/format.h>
+
 #include <handlers/bearer_auth/getresource/handler.hpp>
 
 namespace handlers::bearer_auth::getresource {
@@ -14,7 +16,7 @@ Response View::Handle(
         );
     }
     Response response;
-    response.body = token_data->subject;
+    response.body = fmt::format("{}:{}", token_data->subject, token_data->bearer_format);
     return response;
 }
 

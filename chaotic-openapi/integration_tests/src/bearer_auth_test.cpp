@@ -4,8 +4,11 @@
 #include <string_view>
 
 #include <userver/http/common_headers.hpp>
+#include <userver/utest/death_tests.hpp>
 #include <userver/utest/http_client.hpp>
 #include <userver/utest/http_server_mock.hpp>
+#include <userver/utils/assert.hpp>
+#include <userver/utils/invariant_error.hpp>
 
 #include <clients/bearer_auth/client_impl.hpp>
 
@@ -60,6 +63,26 @@ UTEST(BearerAuth, CredentialsPassedAsAuthorizationHeader) {
 
     EXPECT_EQ(resource_count, 1);
     EXPECT_EQ(admin_count, 1);
+}
+
+UTEST(BearerAuth, RequestRejectedWhenCredentialsMissing) {
+    utest::HttpServerMock http_server{[](const utest::HttpServerMock::HttpRequest& request) {
+        utest::HttpServerMock::HttpResponse response;
+        response.response_status = 200;
+        return response;
+    }};
+
+    chaotic::openapi::client::Config config;
+    config.base_url = http_server.GetBaseUrl();
+
+    auto http_client_ptr = utest::CreateHttpClient();
+    client_ns::ClientImpl client(config, *http_client_ptr);
+
+    if constexpr (utils::impl::kEnableAssert) {
+        UEXPECT_DEATH((void)client.GetResource(), ".*");
+    } else {
+        EXPECT_THROW(client.GetResource(), utils::InvariantError);
+    }
 }
 
 }  // namespace
