@@ -14,10 +14,10 @@
 #include <userver/utest/using_namespace_userver.hpp>
 #include <userver/utils/daemon_run.hpp>
 
+#include <clients/bearer/component.hpp>
 #include <clients/secure/component.hpp>
 #include <clients/test/component.hpp>
 #include <clients/test/qos.hpp>
-#include <clients/bearer/component.hpp>
 
 #include <auth_digest.hpp>
 #include <handlers/insecure/chaotic_handlers_list.hpp>

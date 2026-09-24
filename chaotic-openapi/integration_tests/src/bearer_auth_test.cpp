@@ -66,7 +66,7 @@ UTEST(BearerAuth, CredentialsPassedAsAuthorizationHeader) {
 }
 
 UTEST(BearerAuth, RequestRejectedWhenCredentialsMissing) {
-    utest::HttpServerMock http_server{[](const utest::HttpServerMock::HttpRequest& request) {
+    utest::HttpServerMock http_server{[](const utest::HttpServerMock::HttpRequest& /*request*/) {
         utest::HttpServerMock::HttpResponse response;
         response.response_status = 200;
         return response;

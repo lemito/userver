@@ -52,8 +52,9 @@ ApplyConfig(r, command_control, config_);        SerializeRequest(request, confi
 // Apply Bearer auth credentials for scheme 'myBearerScheme'
 const auto credentials = GetBearerAuthCredentials("myBearerScheme");
 UINVARIANT(
-    credentials.has_value(),
-    "Bearer auth credentials for scheme 'myBearerScheme' not found in config"
+credentials.has_value(),
+"Bearer auth credentials for client 'test', scheme 'myBearerScheme' "
+"not found in config"
 );
 r.headers({ {"Authorization", "Bearer " + credentials->token.GetUnderlying()} });
 

@@ -17,16 +17,6 @@ namespace handlers::bearer_auth::secureget {
     using RequestContext = USERVER_NAMESPACE::server::request::RequestContext;
 
     static Response Handle(Request&& request, Deps&& deps, RequestContext& context);
-
-    /* Uncomment, if you want to define a custom logging for request/response body.
-     * E.g. you want to log several fields, but omit the others (secrets, etc.).
-     *
-
-    static std::string GetResponseForLogging(
-        const Response& response,
-        const std::string& serialized_response,
-        RequestContext& context);
-    */
   };
 
 }  // namespace handlers::bearer_auth::secureget

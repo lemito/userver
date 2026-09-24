@@ -33,7 +33,7 @@ public:
     ) override;
 
 private:
-    std::unordered_map<std::string, std::uint64_t> tokens_;
+    const std::unordered_map<std::string, std::uint64_t> tokens_;
 };
 
 }  // namespace samples::auth

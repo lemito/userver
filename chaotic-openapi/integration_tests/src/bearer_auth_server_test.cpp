@@ -159,6 +159,15 @@ public:
     ) override {
         return std::make_unique<TestAdminBearerAuthChecker>();
     }
+
+    static yaml_config::Schema GetStaticConfigSchema() {
+        return yaml_config::MergeSchemas<components::ComponentBase>(R"(
+type: object
+description: Creates test admin bearer auth checkers
+additionalProperties: false
+properties: {}
+)");
+    }
 };
 
 class LegacyAuthCheckerBearer final : public server::handlers::auth::AuthCheckerBase {
@@ -362,6 +371,9 @@ inline constexpr bool components::kHasValidate<BearerAuthServerTester> = true;
 
 template <>
 inline constexpr bool components::kHasValidate<TestBearerAuthCheckerFactory> = true;
+
+template <>
+inline constexpr bool components::kHasValidate<TestAdminBearerAuthCheckerFactory> = true;
 
 namespace {
 

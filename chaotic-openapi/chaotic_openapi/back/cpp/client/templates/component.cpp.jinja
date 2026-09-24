@@ -18,9 +18,13 @@
 #define USERVER_TVM2_HTTP_CLIENT
 {% endif %}
 
-{% if spec.uses_digest_security() or spec.uses_bearer_security() %}
+{% if spec.uses_bearer_security() %}
 #include <userver/chaotic/openapi/client/bearer_auth.hpp>
+{% endif %}
+{% if spec.uses_digest_security() %}
 #include <userver/chaotic/openapi/client/digest_auth.hpp>
+{% endif %}
+{% if spec.uses_digest_security() or spec.uses_bearer_security() %}
 #include <userver/storages/secdist/component.hpp>
 #include <userver/utils/algo.hpp>
 #include <userver/utils/assert.hpp>

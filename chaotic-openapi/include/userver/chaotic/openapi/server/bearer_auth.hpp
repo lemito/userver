@@ -69,6 +69,10 @@ using BearerAuthCheckerConfigByHandler = std::unordered_map<std::string, BearerA
 /// @brief Dynamic config key with the bearer auth runtime metadata of
 /// generated handlers.
 ///
+/// A handler keeps the `bearer_format` from its static config unless this key
+/// has a non-empty `bearer_format` for that handler name; an empty value is
+/// treated as "not set" and leaves the static value in place.
+///
 /// Expected dynamic config JSON layout:
 /// @code{.json}
 /// {
@@ -103,6 +107,10 @@ struct BearerTokenData {
 /// custom logic). The generated handler calls `VerifyToken` for every request
 /// that carries an `Authorization: Bearer <token>` header and rejects the
 /// request with HTTP 401 if the token is missing or invalid.
+///
+/// @note One checker instance is shared by every request to the handler, so
+/// implementations must be safe to call concurrently and must not mutate their
+/// own state without synchronization.
 class BearerAuthChecker {
 public:
     virtual ~BearerAuthChecker() = default;

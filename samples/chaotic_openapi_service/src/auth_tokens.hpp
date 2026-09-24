@@ -4,8 +4,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <userver/formats/common/items.hpp>
 #include <userver/formats/json/value.hpp>
-#include <userver/utest/using_namespace_userver.hpp>
 
 namespace samples::auth {
 
@@ -13,12 +13,12 @@ namespace samples::auth {
 /// secdist config.
 class AuthTokens final {
 public:
-    explicit AuthTokens(const formats::json::Value& data) {
+    explicit AuthTokens(const USERVER_NAMESPACE::formats::json::Value& data) {
         const auto tokens = data["tokens"];
         if (!tokens.IsObject()) {
             return;
         }
-        for (const auto& [token, user_id] : Items(tokens)) {
+        for (const auto& [token, user_id] : USERVER_NAMESPACE::formats::common::Items(tokens)) {
             tokens_.emplace(token, user_id.As<std::uint64_t>());
         }
     }

@@ -96,10 +96,11 @@ std::optional<USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentials
         {% if op.uses_bearer_security() %}
         // Apply Bearer auth credentials for scheme '{{ op.bearer_scheme_name() }}'
         const auto credentials = GetBearerAuthCredentials("{{ op.bearer_scheme_name() }}");
-        UINVARIANT(
-            credentials.has_value(),
-            "Bearer auth credentials for scheme '{{ op.bearer_scheme_name() }}' not found in config"
-        );
+UINVARIANT(
+    credentials.has_value(),
+    "Bearer auth credentials for client '{{ spec.client_name }}', scheme '{{ op.bearer_scheme_name() }}' "
+    "not found in config"
+);
         r.headers({ {"Authorization", "Bearer " + credentials->token.GetUnderlying()} });
         {% endif %}
 

@@ -172,8 +172,9 @@ public:
     }
 
     /// @brief Returns the verified bearer token data for the current request,
-    /// or `std::nullopt` if the request was not authenticated with a valid
-    /// bearer token (or no bearer auth checker is configured for this handler).
+    /// or `std::nullopt` when the request was not authenticated with a valid
+    /// bearer token. For handlers that do not use bearer auth this is always
+    /// `std::nullopt`.
     ///
     /// The handler verifies the `Authorization: Bearer <token>` header with the
     /// configured `BearerAuthChecker` and stores the result in the request

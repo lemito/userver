@@ -9,6 +9,7 @@
 #include <utility>
 
 #include <userver/storages/secdist/component.hpp>
+#include <userver/utils/assert.hpp>
 
 #include "auth_tokens.hpp"
 
@@ -41,7 +42,13 @@ BearerCheckerFactory::BearerCheckerFactory(
     const components::ComponentContext& context
 )
     : components::ComponentBase(config, context),
-      tokens_(context.FindComponent<components::Secdist>().Get().Get<AuthTokens>().Get()) {}
+      tokens_(context.FindComponent<components::Secdist>().Get().Get<AuthTokens>().Get())
+{
+    UASSERT_MSG(
+        !tokens_.empty(),
+        "bearer-auth-checker: no bearer tokens found in secdist; every request would be rejected"
+    );
+}
 
 std::unique_ptr<chaotic::openapi::server::BearerAuthChecker> BearerCheckerFactory::Create(
     const components::ComponentConfig& /*config*/,
