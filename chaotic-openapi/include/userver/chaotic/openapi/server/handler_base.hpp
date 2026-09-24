@@ -85,7 +85,9 @@ concept ViewHasGetResponseForLogging =
 /// @tparam BearerEnabled  Whether the operation uses HTTP Bearer auth. Bearer
 ///                    auth is handled by this base class (via the
 ///                    `bearer_auth` static config section) instead of the
-///                    legacy auth middleware.
+///                    legacy auth middleware. Handlers with bearer auth also
+///                    require the `dynamic-config` component; handlers without
+///                    bearer auth have no such dependency.
 ///
 /// The generated `Handler` subclass implements `Handle()`.
 template <
@@ -142,21 +144,19 @@ public:
         const USERVER_NAMESPACE::components::ComponentContext& context
     )
         : USERVER_NAMESPACE::server::handlers::HttpHandlerBase(config, context),
-          factories_(context.FindComponent<FactoriesContainer>()),
-          config_source_(context.FindComponent<components::DynamicConfig>().GetSource()),
-          static_checker_config_(ParseStaticCheckerConfig(config))
+          factories_(context.FindComponent<FactoriesContainer>())
     {
         if constexpr (BearerEnabled) {
+            static_checker_config_ = ParseStaticCheckerConfig(config);
             if (static_checker_config_.checker_component.empty()) {
                 throw std::runtime_error(
                     "chaotic-openapi: handler '" + std::string{kName} +
                     "' uses bearer auth, but 'bearer_auth.checker_component' is not set in its static config"
                 );
             }
-        }
-        bearer_auth_state_.Emplace(MakeAuthState(static_checker_config_, context));
-        if constexpr (BearerEnabled) {
-            config_source_.UpdateAndListen(
+            bearer_auth_state_.Emplace(MakeAuthState(static_checker_config_, context));
+            config_source_.emplace(context.FindComponent<components::DynamicConfig>().GetSource());
+            config_source_->UpdateAndListen(
                 context.Scopes(), this, kName, &BaseHandler::OnBearerAuthConfigUpdate, kBearerAuthCheckerConfig
             );
         }
@@ -443,7 +443,7 @@ private:
     }
 
     FactoriesContainer& factories_;
-    USERVER_NAMESPACE::dynamic_config::Source config_source_;
+    std::optional<USERVER_NAMESPACE::dynamic_config::Source> config_source_;
     BearerAuthCheckerConfig static_checker_config_;
     USERVER_NAMESPACE::rcu::Variable<AuthState> bearer_auth_state_;
 };

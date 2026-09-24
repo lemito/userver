@@ -36,7 +36,9 @@ namespace {
 
 USERVER_NAMESPACE::chaotic::openapi::client::Config MakeConfig(
     const USERVER_NAMESPACE::components::ComponentConfig& config,
-    const USERVER_NAMESPACE::components::ComponentContext&{% if spec.uses_digest_security() or spec.uses_bearer_security() %} context{% endif %}
+    const USERVER_NAMESPACE::components::ComponentContext&{% if spec.uses_digest_security() or spec.uses_bearer_security() %} context{% endif %}{% if spec.uses_bearer_security() %},
+    USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme& secdist_bearer_credentials
+{% endif %}
 ) {
     auto cfg = USERVER_NAMESPACE::chaotic::openapi::client::ParseConfig(config, ClientImpl::kDefaultBaseUrl);
     {% if spec.uses_digest_security() or spec.uses_bearer_security() %}
@@ -78,6 +80,10 @@ USERVER_NAMESPACE::chaotic::openapi::client::Config MakeConfig(
     {% endfor %}
     {% endif %}
 
+    {% if spec.uses_bearer_security() %}
+    secdist_bearer_credentials = cfg.bearer_auth_credentials;
+    {% endif %}
+
     return cfg;
 }
 
@@ -91,7 +97,7 @@ Component::Component(
 )
     : USERVER_NAMESPACE::components::ComponentBase(config, context),
       client_(
-          MakeConfig(config, context),
+          MakeConfig(config, context{% if spec.uses_bearer_security() %}, secdist_bearer_credentials_{% endif %}),
           context.FindComponent<USERVER_NAMESPACE::components::HttpClient>().GetHttpClient()
       ){% if spec.uses_bearer_security() %},
       config_source_(context.FindComponent<USERVER_NAMESPACE::components::DynamicConfig>().GetSource())
@@ -141,9 +147,9 @@ Client& Component::GetClient() { return client_; }
 void Component::OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
     const auto& by_client = config[USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials];
     const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(by_client, "{{ spec.client_name }}");
-    if (credentials && !credentials->empty()) {
-        client_.UpdateBearerAuthCredentials(*credentials);
-    }
+    client_.UpdateBearerAuthCredentials(
+        credentials && !credentials->empty() ? *credentials : secdist_bearer_credentials_
+    );
 }
 {% endif %}
 

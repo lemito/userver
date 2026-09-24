@@ -9,7 +9,8 @@
 
 namespace samples::auth {
 
-// Bearer tokens to user ids mapping from the 'tokens' section of the secdist config.
+/// @brief Bearer tokens to user ids mapping from the 'tokens' section of the
+/// secdist config.
 class AuthTokens final {
 public:
     explicit AuthTokens(const formats::json::Value& data) {

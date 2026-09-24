@@ -10,9 +10,6 @@ Response View::Handle(
     Deps&& /*deps*/,
     RequestContext& context
 ) {
-    // The request is already authenticated here: the core auth middleware has
-    // verified the `Authorization: Bearer <token>` header with the legacy
-    // `AuthCheckerBase` registered as auth type "bearer" before this view.
     const auto& auth_info = USERVER_NAMESPACE::server::auth::GetUserAuthInfo(context);
     const auto user_id = auth_info.GetDefaultUserId();
     Response response;

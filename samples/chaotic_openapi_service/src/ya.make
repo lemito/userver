@@ -104,6 +104,42 @@ RUN_PROGRAM(
 
 RUN_PROGRAM(
     taxi/uservices/userver/chaotic-openapi/bin
+        --name bearer
+        --gen client
+        -o ${BINDIR}/
+        --clang-format ''
+        ../clients/bearer.yaml
+    OUTPUT_INCLUDES
+        ${CHAOTIC_INCLUDES}
+        ${CHAOTIC_OPENAPI_INCLUDES}
+    IN_NOPARSE
+        ../clients/bearer.yaml
+    OUT
+        src/clients/bearer/client_impl.cpp
+        src/clients/bearer/client.cpp
+        src/clients/bearer/requests.cpp
+        src/clients/bearer/responses.cpp
+        src/clients/bearer/component.cpp
+        src/clients/bearer/exceptions.cpp
+
+        include/clients/bearer/client_impl.hpp
+        include/clients/bearer/client.hpp
+        include/clients/bearer/client_fwd.hpp
+        include/clients/bearer/requests.hpp
+        include/clients/bearer/responses.hpp
+        include/clients/bearer/exceptions.hpp
+        include/clients/bearer/component.hpp
+        include/clients/bearer/qos.hpp
+
+        src/clients/bearer/bearer.cpp
+        include/clients/bearer/bearer.hpp
+        include/clients/bearer/bearer_fwd.hpp
+        include/clients/bearer/bearer_parsers.ipp
+        include/clients/bearer/bearer_sax_parsers.hpp
+)
+
+RUN_PROGRAM(
+    taxi/uservices/userver/chaotic-openapi/bin
         --name insecure
         --gen handlers
         -o ${BINDIR}/

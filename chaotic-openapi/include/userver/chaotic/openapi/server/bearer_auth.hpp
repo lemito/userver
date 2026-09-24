@@ -13,6 +13,7 @@
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/dynamic_config/snapshot.hpp>
+#include <userver/formats/json/value.hpp>
 #include <userver/formats/parse/to.hpp>
 
 USERVER_NAMESPACE_BEGIN

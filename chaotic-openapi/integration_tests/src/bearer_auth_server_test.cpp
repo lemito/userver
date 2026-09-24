@@ -51,8 +51,6 @@ struct ListenerReservation final {
     fs::blocking::FileDescriptor fd;
 };
 
-// Reserves a listening socket so that the server under test binds to a free
-// port without a race between "find a free port" and "bind to it".
 ListenerReservation ReserveListener() {
     ListenerReservation result;
     engine::RunStandalone([&result] {
@@ -67,20 +65,14 @@ ListenerReservation ReserveListener() {
 
 class TestBearerAuthChecker final : public chaotic_server::BearerAuthChecker {
 public:
-    explicit TestBearerAuthChecker(std::string bearer_format) : bearer_format_(std::move(bearer_format)) {}
-
     std::optional<chaotic_server::BearerTokenData> VerifyToken(std::string_view token) const override {
         if (token != kValidToken) {
             return std::nullopt;
         }
         chaotic_server::BearerTokenData data;
         data.subject = std::string{kSubject};
-        data.bearer_format = bearer_format_;
         return data;
     }
-
-private:
-    std::string bearer_format_;
 };
 
 class TestBearerAuthCheckerFactory final
@@ -97,7 +89,7 @@ public:
         const components::ComponentContext& /*context*/
     ) override {
         bearer_format_ = config["bearer_auth"]["bearer_format"].As<std::string>("");
-        return std::make_unique<TestBearerAuthChecker>(bearer_format_);
+        return std::make_unique<TestBearerAuthChecker>();
     }
 
     const std::string& GetBearerFormat() const { return bearer_format_; }
@@ -106,9 +98,6 @@ private:
     std::string bearer_format_;
 };
 
-// The legacy bearer checker: implements the core `AuthCheckerBase` interface
-// and is registered as auth type "bearer". It coexists with the new
-// `BearerAuthCheckerFactory`-based checker in the same service.
 class LegacyAuthCheckerBearer final : public server::handlers::auth::AuthCheckerBase {
 public:
     using AuthCheckResult = server::handlers::auth::AuthCheckResult;
@@ -165,8 +154,6 @@ public:
     }
 };
 
-// The handler responses are application/json strings, so the body is a
-// JSON-quoted value.
 static std::string ParseJsonStringBody(const clients::http::Response& response) {
     return formats::json::FromString(response.body()).As<std::string>();
 }
@@ -178,7 +165,8 @@ public:
     BearerAuthServerTester(const components::ComponentConfig& config, const components::ComponentContext& context)
         : ComponentBase(config, context),
           factory_(context.FindComponent<TestBearerAuthCheckerFactory>()),
-          port_(config["port"].As<std::uint16_t>()) {
+          port_(config["port"].As<std::uint16_t>()),
+          expected_bearer_format_(config["expected-bearer-format"].As<std::string>("")) {
         context.FindComponent<components::Server>();
     }
 
@@ -193,6 +181,9 @@ properties:
     port:
         type: integer
         description: listener port of the server under test
+    expected-bearer-format:
+        type: string
+        description: bearer format the /secure handler must report to the view
 )");
     }
 
@@ -225,7 +216,7 @@ private:
     void TestValidToken() {
         const auto response = Get("/secure", fmt::format("Bearer {}", kValidToken));
         EXPECT_EQ(response->status_code(), clients::http::Status::kOk);
-        EXPECT_EQ(ParseJsonStringBody(*response), kSubject);
+        EXPECT_EQ(ParseJsonStringBody(*response), fmt::format("{}:{}", kSubject, expected_bearer_format_));
     }
 
     void TestMissingHeader() {
@@ -241,7 +232,7 @@ private:
     void TestLowercaseBearerPrefix() {
         const auto response = Get("/secure", fmt::format("bearer {}", kValidToken));
         EXPECT_EQ(response->status_code(), clients::http::Status::kOk);
-        EXPECT_EQ(ParseJsonStringBody(*response), kSubject);
+        EXPECT_EQ(ParseJsonStringBody(*response), fmt::format("{}:{}", kSubject, expected_bearer_format_));
     }
 
     void TestSecondHandler() {
@@ -272,6 +263,7 @@ private:
 
     const TestBearerAuthCheckerFactory& factory_;
     const std::uint16_t port_;
+    const std::string expected_bearer_format_;
     std::shared_ptr<clients::http::Client> client_;
 };
 
@@ -280,11 +272,14 @@ private:
 template <>
 inline constexpr bool components::kHasValidate<BearerAuthServerTester> = true;
 
-TEST(BearerAuthServer, EndToEnd) {
-    server::handlers::auth::RegisterAuthCheckerFactory<LegacyAuthCheckerFactory>();
+namespace {
 
-    const auto listener = ReserveListener();
-    const auto config = fmt::format(
+std::string MakeConfig(
+    const ListenerReservation& listener,
+    std::string_view dynamic_config_defaults,
+    std::string_view expected_bearer_format
+) {
+    return fmt::format(
         R"(
 components_manager:
   coro_pool:
@@ -330,13 +325,30 @@ components_manager:
       auth:
         types:
           - bearer
+    dynamic-config:
+      defaults:
+{2}
     test-bearer-auth-checker: {{}}
     bearer-auth-server-tester:
       port: {1}
+      expected-bearer-format: {3}
 )",
         listener.fd.GetNative(),
-        listener.port
+        listener.port,
+        dynamic_config_defaults,
+        expected_bearer_format
     );
+}
+
+void RunServer(std::string_view dynamic_config_defaults, std::string_view expected_bearer_format) {
+    static const bool legacy_checker_registered = [] {
+        server::handlers::auth::RegisterAuthCheckerFactory<LegacyAuthCheckerFactory>();
+        return true;
+    }();
+    static_cast<void>(legacy_checker_registered);
+
+    const auto listener = ReserveListener();
+    const auto config = MakeConfig(listener, dynamic_config_defaults, expected_bearer_format);
 
     components::RunOnce(
         components::InMemoryConfig{config},
@@ -346,6 +358,23 @@ components_manager:
             .AppendComponentList(handlers::legacy_bearer::ChaoticHandlersList())
             .Append<TestBearerAuthCheckerFactory>()
             .Append<BearerAuthServerTester>()
+    );
+}
+
+}  // namespace
+
+TEST(BearerAuthServer, EndToEnd) {
+    RunServer("", kExpectedBearerFormat);
+}
+
+TEST(BearerAuthServer, BearerFormatOverriddenByDynamicConfig) {
+    constexpr std::string_view kDynamicBearerFormat = "JWT-DYNAMIC";
+    RunServer(
+        R"(        BEARER_AUTH_CHECKER_CONFIG:
+          handler-secure-get:
+            bearer_format: JWT-DYNAMIC
+)",
+        kDynamicBearerFormat
     );
 }
 

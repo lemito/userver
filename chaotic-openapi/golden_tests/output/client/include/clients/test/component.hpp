@@ -27,6 +27,7 @@ public:
 private:
     void OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config);
 
+    USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme secdist_bearer_credentials_;
     ClientImpl client_;
     USERVER_NAMESPACE::dynamic_config::Source config_source_;
 };

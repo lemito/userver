@@ -15,12 +15,6 @@ namespace {
 
 namespace client_ns = ::clients::bearer_auth;
 
-// Verifies the full end-to-end bearer auth chain:
-// - The generated client adds an `Authorization: Bearer <token>` header
-//   on every request.
-// - The header value matches the token from the client config (the raw token
-//   from secdist, prefixed with "Bearer " by the generated code).
-// - Multiple schemes are supported: each operation uses its own token.
 UTEST(BearerAuth, CredentialsPassedAsAuthorizationHeader) {
     constexpr std::string_view kToken = "raw-token-123";
     constexpr std::string_view kAdminToken = "admin-token-456";

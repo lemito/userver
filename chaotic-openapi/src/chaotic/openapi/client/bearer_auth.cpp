@@ -1,7 +1,12 @@
 #include <userver/chaotic/openapi/client/bearer_auth.hpp>
 
+#include <stdexcept>
+#include <string>
+#include <utility>
+
 #include <fmt/format.h>
 
+#include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value.hpp>
 #include <userver/utils/algo.hpp>
 

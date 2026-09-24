@@ -26,7 +26,9 @@ namespace {
 
 USERVER_NAMESPACE::chaotic::openapi::client::Config MakeConfig(
 const USERVER_NAMESPACE::components::ComponentConfig& config,
-const USERVER_NAMESPACE::components::ComponentContext& context) {
+const USERVER_NAMESPACE::components::ComponentContext& context,
+USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme& secdist_bearer_credentials
+) {
 auto cfg = USERVER_NAMESPACE::chaotic::openapi::client::ParseConfig(config, ClientImpl::kDefaultBaseUrl);
 const auto& secdist = context.FindComponent<USERVER_NAMESPACE::components::Secdist>().Get();
 const auto& digest_cfg = secdist.Get<USERVER_NAMESPACE::chaotic::openapi::client::DigestAuthSecdistConfig>();
@@ -57,6 +59,8 @@ UINVARIANT(
 );
 }
 
+secdist_bearer_credentials = cfg.bearer_auth_credentials;
+
 return cfg;
 }
 
@@ -68,7 +72,7 @@ Component::Component(
 )
     : USERVER_NAMESPACE::components::ComponentBase(config, context),
       client_(
-          MakeConfig(config, context),
+          MakeConfig(config, context, secdist_bearer_credentials_),
           context.FindComponent<USERVER_NAMESPACE::components::HttpClient>().GetHttpClient()
       ),
       config_source_(context.FindComponent<USERVER_NAMESPACE::components::DynamicConfig>().GetSource())
@@ -114,9 +118,9 @@ Client& Component::GetClient() { return client_; }
 void Component::OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
     const auto& by_client = config[USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials];
     const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(by_client, "test");
-    if (credentials && !credentials->empty()) {
-        client_.UpdateBearerAuthCredentials(*credentials);
-    }
+    client_.UpdateBearerAuthCredentials(
+        credentials && !credentials->empty() ? *credentials : secdist_bearer_credentials_
+    );
 }
 
 USERVER_NAMESPACE::yaml_config::Schema Component::GetStaticConfigSchema() {

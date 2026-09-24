@@ -30,6 +30,9 @@ private:
     void OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config);
     {% endif %}
 
+    {% if spec.uses_bearer_security() %}
+    USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme secdist_bearer_credentials_;
+    {% endif %}
     ClientImpl client_;
     {% if spec.uses_bearer_security() %}
     USERVER_NAMESPACE::dynamic_config::Source config_source_;
