@@ -32,12 +32,11 @@ std::optional<std::string_view> ExtractBearerToken(const ::USERVER_NAMESPACE::se
 
 }  // namespace impl
 
-/// @brief Runtime configuration of the bearer auth checker of a generated
-/// handler, used by the dynamic config key `kBearerAuthCheckerConfig`.
+/// @brief Static configuration of the bearer auth checker of a generated
+/// handler, parsed from the handler's static config (`bearer_auth` section).
 struct BearerAuthCheckerConfig {
     /// Name of the `BearerAuthCheckerFactory` component that creates the
-    /// checker. Empty means "no bearer auth" (or fall back to the static
-    /// config of the handler).
+    /// checker. Empty means "no bearer auth".
     std::string checker_component;
     /// Value of the OpenAPI `bearerFormat` field (e.g. "JWT"), if declared.
     std::string bearer_format;
@@ -45,22 +44,39 @@ struct BearerAuthCheckerConfig {
     bool operator==(const BearerAuthCheckerConfig&) const = default;
 };
 
-/// @brief Parses the checker config from JSON, used by dynamic config.
-BearerAuthCheckerConfig Parse(const formats::json::Value& value, formats::parse::To<BearerAuthCheckerConfig>);
+/// @brief Runtime bearer auth metadata of a generated handler that can be
+/// overridden via dynamic config.
+///
+/// The checker component itself is chosen statically at startup and cannot be
+/// changed at runtime; only the metadata (e.g. `bearer_format`) is dynamic.
+struct BearerAuthCheckerDynamicConfig {
+    /// Value of the OpenAPI `bearerFormat` field (e.g. "JWT"), if declared.
+    std::string bearer_format;
 
-/// @brief Dynamic config key with the bearer auth checker configuration of
+    bool operator==(const BearerAuthCheckerDynamicConfig&) const = default;
+};
+
+/// @brief Parses the runtime checker metadata from JSON, used by dynamic config.
+BearerAuthCheckerDynamicConfig Parse(
+    const formats::json::Value& value,
+    formats::parse::To<BearerAuthCheckerDynamicConfig>
+);
+
+/// @brief Map from handler name to its runtime bearer auth metadata.
+using BearerAuthCheckerConfigByHandler = std::unordered_map<std::string, BearerAuthCheckerDynamicConfig>;
+
+/// @brief Dynamic config key with the bearer auth runtime metadata of
 /// generated handlers.
 ///
 /// Expected dynamic config JSON layout:
 /// @code{.json}
 /// {
 ///   "BEARER_AUTH_CHECKER_CONFIG": {
-///     "checker_component": "my-jwt-checker",
-///     "bearer_format": "JWT"
+///     "handler-name": { "bearer_format": "JWT" }
 ///   }
 /// }
 /// @endcode
-inline const dynamic_config::Key<BearerAuthCheckerConfig> kBearerAuthCheckerConfig{
+inline const dynamic_config::Key<BearerAuthCheckerConfigByHandler> kBearerAuthCheckerConfig{
     "BEARER_AUTH_CHECKER_CONFIG", dynamic_config::DefaultAsJsonString{"{}"}
 };
 

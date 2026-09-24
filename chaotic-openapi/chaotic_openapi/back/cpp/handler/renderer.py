@@ -164,7 +164,10 @@ def render_config_yaml(spec: ServerSpec) -> str:
     components = {}
     for op in spec.operations:
         entry: dict = {'path': op.path, 'method': op.method.upper()}
-        if op.security:
+        # Bearer auth is handled by the generated handler itself (via the
+        # `bearer_auth` section), not by the legacy auth middleware, so it must
+        # not emit `auth.types`.
+        if op.security and not op.uses_bearer_security():
             entry['auth'] = {'types': [op.security.auth_type]}
         if op.uses_bearer_security():
             assert isinstance(op.security, HttpBearerSecurity)

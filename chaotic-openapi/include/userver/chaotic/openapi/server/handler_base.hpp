@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -22,10 +23,12 @@
 #include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value.hpp>
 #include <userver/formats/yaml/value_builder.hpp>
+#include <userver/rcu/rcu.hpp>
 #include <userver/server/handlers/exceptions.hpp>
 #include <userver/server/handlers/http_handler_base.hpp>
 #include <userver/server/http/http_request.hpp>
 #include <userver/server/request/request_context.hpp>
+#include <userver/utils/algo.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 
 USERVER_NAMESPACE_BEGIN
@@ -77,6 +80,12 @@ concept ViewHasGetResponseForLogging =
 /// @tparam Request    Parsed request type for this operation.
 /// @tparam Response   Response variant type for this operation.
 /// @tparam HandlerTag Unique tag type for dependency injection keying.
+/// @tparam HiddenArguments  Type describing query arguments hidden in logs,
+///                    or `void` if there are none.
+/// @tparam BearerEnabled  Whether the operation uses HTTP Bearer auth. Bearer
+///                    auth is handled by this base class (via the
+///                    `bearer_auth` static config section) instead of the
+///                    legacy auth middleware.
 ///
 /// The generated `Handler` subclass implements `Handle()`.
 template <
@@ -86,7 +95,8 @@ template <
     typename Response,
     typename HandlerTag,
     typename View,
-    typename HiddenArguments = void>
+    typename HiddenArguments = void,
+    bool BearerEnabled = false>
 class BaseHandler final : public USERVER_NAMESPACE::server::handlers::HttpHandlerBase {
 public:
     static constexpr std::string_view kName = Name;
@@ -133,16 +143,33 @@ public:
     )
         : USERVER_NAMESPACE::server::handlers::HttpHandlerBase(config, context),
           factories_(context.FindComponent<FactoriesContainer>()),
-          context_(context),
           config_source_(context.FindComponent<components::DynamicConfig>().GetSource()),
           static_checker_config_(ParseStaticCheckerConfig(config))
     {
-        config_source_.UpdateAndListen(
-            context.Scopes(), this, kName, &BaseHandler::OnBearerAuthConfigUpdate, kBearerAuthCheckerConfig
-        );
+        if constexpr (BearerEnabled) {
+            if (static_checker_config_.checker_component.empty()) {
+                throw std::runtime_error(
+                    "chaotic-openapi: handler '" + std::string{kName} +
+                    "' uses bearer auth, but 'bearer_auth.checker_component' is not set in its static config"
+                );
+            }
+        }
+        bearer_auth_state_.Emplace(MakeAuthState(static_checker_config_, context));
+        if constexpr (BearerEnabled) {
+            config_source_.UpdateAndListen(
+                context.Scopes(), this, kName, &BaseHandler::OnBearerAuthConfigUpdate, kBearerAuthCheckerConfig
+            );
+        }
     }
 
     ~BaseHandler() override = default;
+
+    bool NeedCheckAuth() const override {
+        if constexpr (BearerEnabled) {
+            return false;
+        }
+        return USERVER_NAMESPACE::server::handlers::HttpHandlerBase::NeedCheckAuth();
+    }
 
     /// @brief Returns the verified bearer token data for the current request,
     /// or `std::nullopt` if the request was not authenticated with a valid
@@ -179,6 +206,12 @@ properties:
                 type: string
                 description: Value of the OpenAPI bearerFormat field (e.g. JWT)
 )";
+        if constexpr (BearerEnabled) {
+            base_schema += R"(
+        required:
+            - checker_component
+)";
+        }
         return USERVER_NAMESPACE::yaml_config::MergeSchemas<USERVER_NAMESPACE::server::handlers::HttpHandlerBase>(
             base_schema
         );
@@ -260,7 +293,7 @@ private:
 
     std::string HandleRequest(HttpRequest& http_request, USERVER_NAMESPACE::server::request::RequestContext& context)
         const final {
-        if (bearer_checker_) {
+        if constexpr (BearerEnabled) {
             VerifyBearerToken(http_request, context);
         }
         auto request = ParseRequestOrThrow(http_request);
@@ -344,7 +377,22 @@ private:
         return config;
     }
 
-    static std::unique_ptr<BearerAuthChecker> MakeBearerAuthChecker(
+    struct AuthState {
+        std::shared_ptr<const BearerAuthChecker> checker;
+        std::string bearer_format;
+    };
+
+    static AuthState MakeAuthState(
+        const BearerAuthCheckerConfig& checker_config,
+        const USERVER_NAMESPACE::components::ComponentContext& context
+    ) {
+        AuthState state;
+        state.checker = MakeBearerAuthChecker(checker_config, context);
+        state.bearer_format = checker_config.bearer_format;
+        return state;
+    }
+
+    static std::shared_ptr<const BearerAuthChecker> MakeBearerAuthChecker(
         const BearerAuthCheckerConfig& checker_config,
         const USERVER_NAMESPACE::components::ComponentContext& context
     ) {
@@ -356,40 +404,48 @@ private:
     }
 
     void OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
-        const auto& checker_config = config[kBearerAuthCheckerConfig];
-        if (checker_config.checker_component.empty()) {
-            // Dynamic config does not override the checker: fall back to the
-            // static config of the handler.
-            bearer_checker_ = MakeBearerAuthChecker(static_checker_config_, context_);
-        } else {
-            bearer_checker_ = MakeBearerAuthChecker(checker_config, context_);
+        const auto& by_handler = config[kBearerAuthCheckerConfig];
+        const auto* dynamic_config = USERVER_NAMESPACE::utils::FindOrNullptr(by_handler, std::string{kName});
+        auto state = bearer_auth_state_.ReadCopy();
+        state.bearer_format = static_checker_config_.bearer_format;
+        if (dynamic_config && !dynamic_config->bearer_format.empty()) {
+            state.bearer_format = dynamic_config->bearer_format;
         }
+        bearer_auth_state_.Assign(std::move(state));
     }
 
     void VerifyBearerToken(
         const HttpRequest& http_request,
         USERVER_NAMESPACE::server::request::RequestContext& context
     ) const {
+        const auto auth_state = bearer_auth_state_.Read();
+        if (!auth_state->checker) {
+            throw USERVER_NAMESPACE::server::handlers::Unauthorized(
+                USERVER_NAMESPACE::server::handlers::ExternalBody{"Bearer auth is not configured"}
+            );
+        }
         const auto token = impl::ExtractBearerToken(http_request);
         if (!token) {
             throw USERVER_NAMESPACE::server::handlers::Unauthorized(
                 USERVER_NAMESPACE::server::handlers::ExternalBody{"Bearer token is required"}
             );
         }
-        auto token_data = bearer_checker_->VerifyToken(*token);
+        auto token_data = auth_state->checker->VerifyToken(*token);
         if (!token_data) {
             throw USERVER_NAMESPACE::server::handlers::Unauthorized(
                 USERVER_NAMESPACE::server::handlers::ExternalBody{"Invalid bearer token"}
             );
         }
+        if (token_data->bearer_format.empty()) {
+            token_data->bearer_format = auth_state->bearer_format;
+        }
         context.EmplaceData(impl::kBearerTokenData, std::move(*token_data));
     }
 
     FactoriesContainer& factories_;
-    const USERVER_NAMESPACE::components::ComponentContext& context_;
     USERVER_NAMESPACE::dynamic_config::Source config_source_;
     BearerAuthCheckerConfig static_checker_config_;
-    std::unique_ptr<BearerAuthChecker> bearer_checker_;
+    USERVER_NAMESPACE::rcu::Variable<AuthState> bearer_auth_state_;
 };
 
 }  // namespace chaotic::openapi::server

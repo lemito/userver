@@ -96,7 +96,7 @@ def test_handler_config_yaml_mixed_ops():
 
 
 def test_handler_config_yaml_with_bearer_auth():
-    """Bearer security -> config.chaotic.yaml includes auth.types and bearer_auth."""
+    """Bearer security -> config.chaotic.yaml includes bearer_auth, no auth.types."""
     doc = dict(_BASE)
     doc['components'] = {'securitySchemes': {'myBearer': _BEARER_SCHEME}}
     doc['paths'] = {
@@ -114,7 +114,7 @@ def test_handler_config_yaml_with_bearer_auth():
 
     components = config['components_manager']['components']
     handler_entry = components['handler-get-test']
-    assert handler_entry['auth'] == {'types': ['myBearer']}
+    assert 'auth' not in handler_entry
     assert handler_entry['bearer_auth'] == {'bearer_format': 'JWT'}
 
 
@@ -138,3 +138,39 @@ def test_handler_config_yaml_bearer_without_format():
     components = config['components_manager']['components']
     handler_entry = components['handler-get-test']
     assert handler_entry['bearer_auth'] == {}
+
+
+def test_handler_config_yaml_mixed_digest_and_bearer():
+    """Digest op keeps auth.types, bearer op gets only bearer_auth."""
+    doc = dict(_BASE)
+    doc['components'] = {
+        'securitySchemes': {
+            'myDigest': _DIGEST_SCHEME,
+            'myBearer': _BEARER_SCHEME,
+        },
+    }
+    doc['paths'] = {
+        '/digest': {
+            'get': {
+                'operationId': 'getDigest',
+                'responses': {},
+                'security': [{'myDigest': []}],
+            },
+        },
+        '/bearer': {
+            'get': {
+                'operationId': 'getBearer',
+                'responses': {},
+                'security': [{'myBearer': []}],
+            },
+        },
+    }
+    spec = _translate_handler(doc)
+    config_yaml = handler_renderer.render_config_yaml(spec)
+    config = yaml.safe_load(config_yaml)
+
+    components = config['components_manager']['components']
+    assert components['handler-get-digest']['auth'] == {'types': ['myDigest']}
+    assert 'bearer_auth' not in components['handler-get-digest']
+    assert 'auth' not in components['handler-get-bearer']
+    assert components['handler-get-bearer']['bearer_auth'] == {'bearer_format': 'JWT'}

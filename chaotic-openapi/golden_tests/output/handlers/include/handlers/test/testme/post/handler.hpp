@@ -22,6 +22,6 @@ void,
 Request,
 Response,
 HandlerTag,
-View>;
+View, void, true>;
 
 }  // namespace handlers::test::testme::post

@@ -22,7 +22,8 @@ using Handler = {{ userver }}::chaotic::openapi::server::BaseHandler<
     Response,
     HandlerTag,
     View
-    {%- if op.has_any_hidden_query_parameters() %}, HiddenQueryArguments{% endif %}
+    {%- if op.has_any_hidden_query_parameters() %}, HiddenQueryArguments{% elif op.uses_bearer_security() %}, void{% endif %}
+    {%- if op.uses_bearer_security() %}, true{% endif %}
 >;
 
 }  // namespace {{ spec.cpp_namespace }}::{{ op.cpp_namespace() }}

@@ -3,8 +3,5 @@ components_manager:
     handler-testme-post:
       path: /testme
       method: POST
-      auth:
-        types:
-        - myBearerScheme
       bearer_auth:
         bearer_format: JWT

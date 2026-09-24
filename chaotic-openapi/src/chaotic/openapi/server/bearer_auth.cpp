@@ -11,22 +11,55 @@ USERVER_NAMESPACE_BEGIN
 
 namespace chaotic::openapi::server {
 
-BearerAuthCheckerConfig Parse(const formats::json::Value& value, formats::parse::To<BearerAuthCheckerConfig>) {
-    BearerAuthCheckerConfig config;
-    config.checker_component = value["checker_component"].As<std::string>("");
+BearerAuthCheckerDynamicConfig Parse(
+    const formats::json::Value& value,
+    formats::parse::To<BearerAuthCheckerDynamicConfig>
+) {
+    BearerAuthCheckerDynamicConfig config;
     config.bearer_format = value["bearer_format"].As<std::string>("");
     return config;
 }
 
 namespace impl {
 
+namespace {
+
+constexpr bool IsSpace(char c) { return c == ' ' || c == '\t'; }
+
+constexpr char ToLowerAscii(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        return static_cast<char>(c - 'A' + 'a');
+    }
+    return c;
+}
+
+}  // namespace
+
 std::optional<std::string_view> ExtractBearerToken(const ::USERVER_NAMESPACE::server::http::HttpRequest& request) {
     const auto& auth_header = request.GetHeader(http::headers::kAuthorization);
-    constexpr std::string_view kBearerPrefix = "Bearer ";
-    if (!auth_header.starts_with(kBearerPrefix)) {
+    const std::string_view header{auth_header};
+    constexpr std::string_view kBearerScheme = "bearer";
+
+    if (header.size() < kBearerScheme.size()) {
         return std::nullopt;
     }
-    return std::string_view{auth_header.data() + kBearerPrefix.size(), auth_header.size() - kBearerPrefix.size()};
+    for (std::size_t i = 0; i < kBearerScheme.size(); ++i) {
+        if (ToLowerAscii(header[i]) != kBearerScheme[i]) {
+            return std::nullopt;
+        }
+    }
+
+    std::size_t pos = kBearerScheme.size();
+    if (pos == header.size() || !IsSpace(header[pos])) {
+        return std::nullopt;
+    }
+    while (pos < header.size() && IsSpace(header[pos])) {
+        ++pos;
+    }
+    if (pos == header.size()) {
+        return std::nullopt;
+    }
+    return header.substr(pos);
 }
 
 }  // namespace impl
