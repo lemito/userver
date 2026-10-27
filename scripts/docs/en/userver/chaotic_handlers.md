@@ -134,6 +134,31 @@ Options that code generation cannot know, such as the Digest realm, stay in the 
 See @ref scripts/docs/en/userver/tutorial/digest_auth_postgres.md for a database-backed
 Digest auth checker. The `chaotic_openapi_service` sample contains a complete in-memory example.
 
+#### HTTP Bearer authentication
+
+Operations with a `securityScheme` of type `http` and scheme `bearer` are authenticated by the generated
+handler itself rather than by the `auth.types` mechanism. The handler extracts the token from the
+`Authorization: Bearer <token>` header and passes it to a
+@ref chaotic::openapi::server::BearerAuthChecker provided by the service, so any JWT library or custom
+logic can be used. Requests without a token or with a rejected token get HTTP 401 with a
+`WWW-Authenticate: Bearer` header, as RFC 6750 requires.
+
+Implement a component that derives from @ref chaotic::openapi::server::BearerAuthCheckerFactory:
+
+@snippet samples/chaotic_openapi_service/src/bearer_checker.hpp bearer checker factory
+
+@snippet samples/chaotic_openapi_service/main.cpp register-bearer-checker
+
+The generated `config.chaotic.yaml` contains a `bearer_auth` section with the `bearerFormat` from the schema.
+Point the handler to the checker component in the service config. A Bearer handler must not have an
+`auth` section; the service fails to start if it does:
+
+@snippet samples/chaotic_openapi_service/static_config.user.yaml bearer-handler-config
+
+The verified token data is available in the view:
+
+@snippet samples/chaotic_openapi_service/src/handlers/secure/bearerget/view.cpp bearer-token-data
+
 
 ### Direct CLI reference
 

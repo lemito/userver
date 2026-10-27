@@ -11,6 +11,7 @@
 
 namespace samples::auth {
 
+/// [bearer checker factory]
 /// @brief Creates `BearerAuthChecker` instances for the generated handlers.
 ///
 /// Registered as a component and referenced from the handler static config:
@@ -37,5 +38,6 @@ public:
 private:
     const std::unordered_map<std::string, std::uint64_t> tokens_;
 };
+/// [bearer checker factory]
 
 }  // namespace samples::auth

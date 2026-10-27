@@ -184,6 +184,39 @@ No credentials are passed at the call site—the generated client performs the c
 
 @snippet samples/chaotic_openapi_service/src/handlers/insecure/callsecretget/view.cpp client-use
 
+## HTTP Bearer Authentication
+
+If an operation is annotated with a `securityScheme` of type `http` and scheme `bearer`,
+the generated client sends an `Authorization: Bearer <token>` header with every request of that operation.
+The optional `bearerFormat` field is documentation only; the client never inspects the token.
+
+@snippet samples/chaotic_openapi_service/clients/bearer.yaml bearer security scheme
+
+@snippet samples/chaotic_openapi_service/clients/bearer.yaml bearer security requirement
+
+@snippet samples/chaotic_openapi_service/CMakeLists.txt bearer-client-cmake
+
+@snippet samples/chaotic_openapi_service/main.cpp register-bearer-client
+
+Tokens are loaded from the `Secdist` component at service startup, using the same
+`<client-name>` / `<scheme-name>` keys as Digest:
+
+```json
+{
+  "http_bearer": {
+    "<client-name>": {
+      "<scheme-name>": { "token": "raw-token-without-Bearer-prefix" }
+    }
+  }
+}
+```
+
+@snippet samples/chaotic_openapi_service/static_config.user.yaml bearer-client-config
+
+No token is passed at the call site:
+
+@snippet samples/chaotic_openapi_service/src/handlers/insecure/callbearerget/view.cpp bearer-client-use
+
 
 # Direct CLI reference
 

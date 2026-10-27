@@ -66,6 +66,7 @@ int main(int argc, char* argv[]) {
             .AppendComponentList(::handlers::secure::ChaoticHandlersList())
             /// [register-bearer-checker]
             .Append<samples::auth::BearerCheckerFactory>();
+    /// [register-bearer-checker]
     /// [register-handlers]
 
     USERVER_NAMESPACE::chaotic::openapi::middlewares::AppendDefaultMiddlewares(component_list);
