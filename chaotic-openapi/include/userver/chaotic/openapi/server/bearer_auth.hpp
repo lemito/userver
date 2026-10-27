@@ -12,9 +12,6 @@
 
 #include <userver/components/component_config.hpp>
 #include <userver/components/component_context.hpp>
-#include <userver/dynamic_config/snapshot.hpp>
-#include <userver/formats/json/value.hpp>
-#include <userver/formats/parse/to.hpp>
 
 USERVER_NAMESPACE_BEGIN
 
@@ -45,46 +42,6 @@ struct BearerAuthCheckerConfig {
     bool operator==(const BearerAuthCheckerConfig&) const = default;
 };
 
-/// @brief Runtime bearer auth metadata of a generated handler that can be
-/// overridden via dynamic config.
-///
-/// The checker component itself is chosen statically at startup and cannot be
-/// changed at runtime; only the metadata (e.g. `bearer_format`) is dynamic.
-struct BearerAuthCheckerDynamicConfig {
-    /// Value of the OpenAPI `bearerFormat` field (e.g. "JWT"), if declared.
-    std::string bearer_format;
-
-    bool operator==(const BearerAuthCheckerDynamicConfig&) const = default;
-};
-
-/// @brief Parses the runtime checker metadata from JSON, used by dynamic config.
-BearerAuthCheckerDynamicConfig Parse(
-    const formats::json::Value& value,
-    formats::parse::To<BearerAuthCheckerDynamicConfig>
-);
-
-/// @brief Map from handler name to its runtime bearer auth metadata.
-using BearerAuthCheckerConfigByHandler = std::unordered_map<std::string, BearerAuthCheckerDynamicConfig>;
-
-/// @brief Dynamic config key with the bearer auth runtime metadata of
-/// generated handlers.
-///
-/// A handler keeps the `bearer_format` from its static config unless this key
-/// has a non-empty `bearer_format` for that handler name; an empty value is
-/// treated as "not set" and leaves the static value in place.
-///
-/// Expected dynamic config JSON layout:
-/// @code{.json}
-/// {
-///   "BEARER_AUTH_CHECKER_CONFIG": {
-///     "handler-name": { "bearer_format": "JWT" }
-///   }
-/// }
-/// @endcode
-inline const dynamic_config::Key<BearerAuthCheckerConfigByHandler> kBearerAuthCheckerConfig{
-    "BEARER_AUTH_CHECKER_CONFIG", dynamic_config::DefaultAsJsonString{"{}"}
-};
-
 /// @brief Result of a successful bearer token verification.
 ///
 /// The application's `BearerAuthChecker` fills this structure; the generated
@@ -106,7 +63,8 @@ struct BearerTokenData {
 /// The application provides the implementation (e.g. using any JWT library or
 /// custom logic). The generated handler calls `VerifyToken` for every request
 /// that carries an `Authorization: Bearer <token>` header and rejects the
-/// request with HTTP 401 if the token is missing or invalid.
+/// request with HTTP 401 and a `WWW-Authenticate: Bearer` header if the token
+/// is missing or invalid.
 ///
 /// @note One checker instance is shared by every request to the handler, so
 /// implementations must be safe to call concurrently and must not mutate their
@@ -134,7 +92,7 @@ class BearerAuthCheckerFactory {
 public:
     virtual ~BearerAuthCheckerFactory() = default;
 
-    /// @brief Creates a checker.
+    /// @brief Creates a checker. Must not return `nullptr`.
     ///
     /// @param config the handler's static config (contains the `bearer_auth`
     ///        section, including `bearer_format` from the OpenAPI schema)

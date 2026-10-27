@@ -8,7 +8,6 @@
 #include <userver/formats/json/exception.hpp>
 #include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value.hpp>
-#include <userver/formats/parse/to.hpp>
 
 USERVER_NAMESPACE_BEGIN
 
@@ -69,18 +68,9 @@ TEST(BearerAuthSecdistConfig, ParsesCredentialsByClientAndScheme) {
     EXPECT_EQ(credentials.token.GetUnderlying(), "raw-token");
 }
 
-TEST(BearerAuthCredentials, ParseReadsToken) {
-    const auto credentials = client_ns::Parse(
-        MakeDoc(R"({"token": "raw-token"})"),
-        formats::parse::To<client_ns::BearerAuthCredentials>{}
-    );
-
-    EXPECT_EQ(credentials.token.GetUnderlying(), "raw-token");
-}
-
-TEST(BearerAuthCredentials, ParseRejectsMissingToken) {
+TEST(BearerAuthSecdistConfig, MissingTokenIsRejected) {
     EXPECT_THROW(
-        client_ns::Parse(MakeDoc("{}"), formats::parse::To<client_ns::BearerAuthCredentials>{}),
+        client_ns::BearerAuthSecdistConfig{MakeDoc(R"({"http_bearer": {"test": {"scheme": {}}}})")},
         formats::json::MemberMissingException
     );
 }

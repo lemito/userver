@@ -36,39 +36,3 @@ async def test_client_authenticates_with_bearer(service_client, bearer_server):
     # The credentials came from secdist, not from the handler code.
     assert bearer_server.authenticated_requests == [f'Bearer {MOCK_TOKEN}']
 
-
-async def test_client_bearer_credentials_from_dynamic_config(service_client, mockserver, dynamic_config):
-    authorization_headers = []
-
-    @mockserver.handler('/api/secure/bearer')
-    def _handler(request):
-        authorization_headers.append(request.headers.get('Authorization'))
-        return mockserver.make_response(json={'greeting': 'ok'})
-
-    response = await service_client.get('/call-bearer')
-    assert response.status == 200
-    assert authorization_headers == [f'Bearer {MOCK_TOKEN}']
-
-    dynamic_config.set_values({'BEARER_AUTH_CREDENTIALS': {'bearer': {'myBearerScheme': {'token': 'dynamic-token'}}}})
-    response = await service_client.get('/call-bearer')
-    assert response.status == 200
-    assert authorization_headers[-1] == 'Bearer dynamic-token'
-
-    dynamic_config.set_values({'BEARER_AUTH_CREDENTIALS': {}})
-    response = await service_client.get('/call-bearer')
-    assert response.status == 200
-    assert authorization_headers[-1] == f'Bearer {MOCK_TOKEN}'
-
-
-async def test_client_bearer_credentials_kept_for_other_clients(service_client, mockserver, dynamic_config):
-    authorization_headers = []
-
-    @mockserver.handler('/api/secure/bearer')
-    def _handler(request):
-        authorization_headers.append(request.headers.get('Authorization'))
-        return mockserver.make_response(json={'greeting': 'ok'})
-
-    dynamic_config.set_values({'BEARER_AUTH_CREDENTIALS': {'another-client': {'myBearerScheme': {'token': 'other-token'}}}})
-    response = await service_client.get('/call-bearer')
-    assert response.status == 200
-    assert authorization_headers[-1] == f'Bearer {MOCK_TOKEN}'

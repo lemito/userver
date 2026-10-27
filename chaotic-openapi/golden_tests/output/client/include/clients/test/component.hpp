@@ -2,8 +2,6 @@
 #pragma once
 
 #include <userver/components/component_base.hpp>
-#include <userver/dynamic_config/snapshot.hpp>
-#include <userver/dynamic_config/source.hpp>
 #include <userver/yaml_config/schema.hpp>
 
 #include <clients/test/client_impl.hpp>
@@ -25,11 +23,7 @@ public:
     static USERVER_NAMESPACE::yaml_config::Schema GetStaticConfigSchema();
 
 private:
-    void OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config);
-
-    USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme secdist_bearer_credentials_;
     ClientImpl client_;
-    USERVER_NAMESPACE::dynamic_config::Source config_source_;
 };
 
 }  // namespace clients::test

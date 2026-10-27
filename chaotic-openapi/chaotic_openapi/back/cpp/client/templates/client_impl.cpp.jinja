@@ -1,17 +1,17 @@
 #include <clients/{{ name }}/client_impl.hpp>
 
-#include <optional>
-
 #include <userver/chaotic/openapi/client/content_encoding.hpp>
 #include <userver/components/component_context.hpp>
 #include <userver/components/component_base.hpp>
-#include <userver/engine/mutex.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
 
 {% if spec.uses_digest_security() or spec.uses_bearer_security() %}
 #include <userver/clients/http/request.hpp>
 #include <userver/utils/algo.hpp>
 #include <userver/utils/assert.hpp>
+{% endif %}
+{% if spec.uses_bearer_security() %}
+#include <userver/http/common_headers.hpp>
 {% endif %}
 
 namespace {{ namespace }} {
@@ -24,28 +24,6 @@ ClientImpl::ClientImpl(
 )
     : config_(config), http_client_(http_client)
 {}
-
-{% if spec.uses_bearer_security() %}
-
-void ClientImpl::UpdateBearerAuthCredentials(
-    USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme credentials
-) {
-    std::lock_guard<USERVER_NAMESPACE::engine::Mutex> lock(bearer_auth_mutex_);
-    config_.bearer_auth_credentials = std::move(credentials);
-}
-
-std::optional<USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentials> ClientImpl::GetBearerAuthCredentials(
-    const std::string& scheme_name
-) const {
-    std::lock_guard<USERVER_NAMESPACE::engine::Mutex> lock(bearer_auth_mutex_);
-    const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(config_.bearer_auth_credentials, scheme_name);
-    if (!credentials) {
-        return std::nullopt;
-    }
-    return *credentials;
-}
-
-{% endif %}
 
 {% endfilter %}
 
@@ -95,13 +73,14 @@ std::optional<USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentials
 
         {% if op.uses_bearer_security() %}
         // Apply Bearer auth credentials for scheme '{{ op.bearer_scheme_name() }}'
-        const auto credentials = GetBearerAuthCredentials("{{ op.bearer_scheme_name() }}");
-UINVARIANT(
-    credentials.has_value(),
-    "Bearer auth credentials for client '{{ spec.client_name }}', scheme '{{ op.bearer_scheme_name() }}' "
-    "not found in config"
-);
-        r.headers({ {"Authorization", "Bearer " + credentials->token.GetUnderlying()} });
+        const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(
+            config_.bearer_auth_credentials, "{{ op.bearer_scheme_name() }}"
+        );
+        UINVARIANT(
+            credentials != nullptr,
+            "Bearer auth credentials for scheme '{{ op.bearer_scheme_name() }}' not found in config"
+        );
+        r.headers({ {USERVER_NAMESPACE::http::headers::kAuthorization, "Bearer " + credentials->token.GetUnderlying()} });
         {% endif %}
 
         middleware_manager_.ProcessRequest(r);

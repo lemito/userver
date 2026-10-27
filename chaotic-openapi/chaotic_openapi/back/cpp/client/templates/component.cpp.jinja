@@ -26,12 +26,7 @@
 {% endif %}
 {% if spec.uses_digest_security() or spec.uses_bearer_security() %}
 #include <userver/storages/secdist/component.hpp>
-#include <userver/utils/algo.hpp>
 #include <userver/utils/assert.hpp>
-{% endif %}
-
-{% if spec.uses_bearer_security() %}
-#include <userver/dynamic_config/storage/component.hpp>
 {% endif %}
 
 namespace {{ namespace }} {
@@ -40,9 +35,7 @@ namespace {
 
 USERVER_NAMESPACE::chaotic::openapi::client::Config MakeConfig(
     const USERVER_NAMESPACE::components::ComponentConfig& config,
-    const USERVER_NAMESPACE::components::ComponentContext&{% if spec.uses_digest_security() or spec.uses_bearer_security() %} context{% endif %}{% if spec.uses_bearer_security() %},
-    USERVER_NAMESPACE::chaotic::openapi::client::BearerAuthCredentialsByScheme& secdist_bearer_credentials
-{% endif %}
+    const USERVER_NAMESPACE::components::ComponentContext&{% if spec.uses_digest_security() or spec.uses_bearer_security() %} context{% endif %}
 ) {
     auto cfg = USERVER_NAMESPACE::chaotic::openapi::client::ParseConfig(config, ClientImpl::kDefaultBaseUrl);
     {% if spec.uses_digest_security() or spec.uses_bearer_security() %}
@@ -84,10 +77,6 @@ USERVER_NAMESPACE::chaotic::openapi::client::Config MakeConfig(
     {% endfor %}
     {% endif %}
 
-    {% if spec.uses_bearer_security() %}
-    secdist_bearer_credentials = cfg.bearer_auth_credentials;
-    {% endif %}
-
     return cfg;
 }
 
@@ -101,22 +90,10 @@ Component::Component(
 )
     : USERVER_NAMESPACE::components::ComponentBase(config, context),
       client_(
-          MakeConfig(config, context{% if spec.uses_bearer_security() %}, secdist_bearer_credentials_{% endif %}),
+          MakeConfig(config, context),
           context.FindComponent<USERVER_NAMESPACE::components::HttpClient>().GetHttpClient()
-      ){% if spec.uses_bearer_security() %},
-      config_source_(context.FindComponent<USERVER_NAMESPACE::components::DynamicConfig>().GetSource())
-{% endif %}
+      ) 
 {
-    {% if spec.uses_bearer_security() %}
-    config_source_.UpdateAndListen(
-        context.Scopes(),
-        this,
-        "{{ spec.client_name }}",
-        &Component::OnBearerAuthConfigUpdate,
-        USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials
-    );
-    {% endif %}
-
     if (config.HasMember("middlewares")) {
         const auto& mw_config = config["middlewares"];
         
@@ -146,16 +123,6 @@ Component::Component(
 }
 
 Client& Component::GetClient() { return client_; }
-
-{% if spec.uses_bearer_security() %}
-void Component::OnBearerAuthConfigUpdate(const USERVER_NAMESPACE::dynamic_config::Snapshot& config) {
-    const auto& by_client = config[USERVER_NAMESPACE::chaotic::openapi::client::kBearerAuthCredentials];
-    const auto* credentials = USERVER_NAMESPACE::utils::FindOrNullptr(by_client, "{{ spec.client_name }}");
-    client_.UpdateBearerAuthCredentials(
-        credentials && !credentials->empty() ? *credentials : secdist_bearer_credentials_
-    );
-}
-{% endif %}
 
 USERVER_NAMESPACE::yaml_config::Schema Component::GetStaticConfigSchema() {
     std::string base_schema = R"(

@@ -3,13 +3,13 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 
 #include <userver/storages/secdist/component.hpp>
-#include <userver/utils/assert.hpp>
 
 #include "auth_tokens.hpp"
 
@@ -44,10 +44,12 @@ BearerCheckerFactory::BearerCheckerFactory(
     : USERVER_NAMESPACE::components::ComponentBase(config, context),
       tokens_(context.FindComponent<USERVER_NAMESPACE::components::Secdist>().Get().Get<AuthTokens>().Get())
 {
-    UASSERT_MSG(
-        !tokens_.empty(),
-        "bearer-auth-checker: no bearer tokens found in secdist; every request would be rejected"
-    );
+    if (tokens_.empty()) {
+        throw std::runtime_error(
+            "bearer-auth-checker: no bearer tokens found in secdist, every request would be rejected. "
+            "Add a 'tokens' section with 'token: user_id' pairs to the secdist config"
+        );
+    }
 }
 
 std::unique_ptr<USERVER_NAMESPACE::chaotic::openapi::server::BearerAuthChecker> BearerCheckerFactory::Create(

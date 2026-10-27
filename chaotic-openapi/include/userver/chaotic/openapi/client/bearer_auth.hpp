@@ -6,10 +6,7 @@
 #include <string>
 #include <unordered_map>
 
-#include <userver/dynamic_config/snapshot.hpp>
 #include <userver/formats/json/value.hpp>
-#include <userver/formats/parse/common_containers.hpp>
-#include <userver/formats/parse/to.hpp>
 #include <userver/utils/strong_typedef.hpp>
 
 USERVER_NAMESPACE_BEGIN
@@ -22,38 +19,10 @@ struct BearerAuthCredentials {
 
     /// Raw token, without the "Bearer " prefix.
     Token token;
-
-    bool operator==(const BearerAuthCredentials&) const = default;
 };
-
-/// @brief Parses bearer auth credentials from JSON, used by dynamic config.
-BearerAuthCredentials Parse(const formats::json::Value& value, formats::parse::To<BearerAuthCredentials>);
 
 /// @brief Map from securityScheme name to its bearer credentials.
 using BearerAuthCredentialsByScheme = std::unordered_map<std::string, BearerAuthCredentials>;
-
-/// @brief Map from client name to its bearer credentials by scheme.
-using BearerAuthCredentialsByClient = std::unordered_map<std::string, BearerAuthCredentialsByScheme>;
-
-/// @brief Dynamic config key with bearer auth credentials of generated clients.
-///
-/// The credentials loaded from secdist are the baseline; a dynamic config
-/// entry for a client replaces that client's credentials entirely. Clients
-/// absent from the dynamic config keep their secdist credentials.
-///
-/// Expected dynamic config JSON layout:
-/// @code{.json}
-/// {
-///   "BEARER_AUTH_CREDENTIALS": {
-///     "<client-name>": {
-///       "<scheme-name>": { "token": "raw-token" }
-///     }
-///   }
-/// }
-/// @endcode
-inline const dynamic_config::Key<BearerAuthCredentialsByClient> kBearerAuthCredentials{
-    "BEARER_AUTH_CREDENTIALS", dynamic_config::DefaultAsJsonString{"{}"}
-};
 
 /// @brief Secdist module that loads bearer auth credentials for all schemes
 /// of a chaotic-openapi generated client.

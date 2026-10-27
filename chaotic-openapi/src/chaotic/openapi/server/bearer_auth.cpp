@@ -3,22 +3,12 @@
 #include <optional>
 #include <string_view>
 
-#include <userver/formats/json/value.hpp>
 #include <userver/http/common_headers.hpp>
 #include <userver/server/http/http_request.hpp>
 
 USERVER_NAMESPACE_BEGIN
 
 namespace chaotic::openapi::server {
-
-BearerAuthCheckerDynamicConfig Parse(
-    const formats::json::Value& value,
-    formats::parse::To<BearerAuthCheckerDynamicConfig>
-) {
-    BearerAuthCheckerDynamicConfig config;
-    config.bearer_format = value["bearer_format"].As<std::string>("");
-    return config;
-}
 
 namespace impl {
 
